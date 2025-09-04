@@ -22,3 +22,7 @@ instance/
 
 # Claude Code project instructions (local development only)
 CLAUDE.md
+
+# Added by cargo
+
+/target

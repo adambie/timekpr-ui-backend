@@ -1,0 +1,38 @@
+# Multi-stage build for Rust application
+FROM rust:1.75 as builder
+
+WORKDIR /app
+COPY Cargo.toml Cargo.lock ./
+COPY src ./src
+COPY migrations ./migrations
+
+# Build the application
+RUN cargo build --release
+
+# Runtime stage with minimal base
+FROM debian:bookworm-slim
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    openssh-client \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy the binary
+COPY --from=builder /app/target/release/timekpr-ui-rust .
+
+# Copy static assets and templates
+COPY --from=builder /app/static ./static
+COPY --from=builder /app/templates ./templates
+COPY --from=builder /app/migrations ./migrations
+
+# Create directory for SSH keys and set proper permissions
+RUN mkdir -p /app/ssh && \
+    chown -R 1000:1000 /app/ssh && \
+    chmod 700 /app/ssh
+
+EXPOSE 5000
+
+CMD ["./timekpr-ui-rust"]

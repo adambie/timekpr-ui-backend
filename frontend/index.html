@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TimeKpr WebUI</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+</head>
+<body>
+    <!-- Theme Toggle -->
+    <button class="theme-toggle" onclick="toggleTheme()">
+        <svg class="theme-toggle-icon" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/>
+        </svg>
+        <span class="theme-toggle-text">Dark</span>
+    </button>
+
+    <!-- Login Page -->
+    <div id="login-page">
+        <div class="login-container">
+            <div class="login-card">
+                <div class="login-header">
+                    <h2>Welcome Back</h2>
+                    <p>TimeKpr WebUI - Parental Control Dashboard</p>
+                </div>
+                
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" id="username" class="form-control" placeholder="Enter your username" required autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" id="password" class="form-control" placeholder="Enter your password" required autocomplete="current-password">
+                    </div>
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary btn-lg w-100">
+                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="margin-right: 8px;">
+                                <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z"/>
+                                <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/>
+                            </svg>
+                            Sign In
+                        </button>
+                    </div>
+                </form>
+                
+                <div id="login-error" class="alert alert-danger" style="display: none;"></div>
+                
+                <div style="text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border-primary);">
+                    <p style="font-size: var(--font-size-xs); color: var(--text-muted);">
+                        Default credentials: admin / admin
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Page -->
+    <div id="dashboard-page" class="hidden">
+        <div class="dashboard-container">
+            <header class="dashboard-header">
+                <div class="dashboard-title">
+                    <h1>TimeKpr Dashboard</h1>
+                    <p class="dashboard-subtitle">Parental Control Management</p>
+                </div>
+                <div class="dashboard-controls">
+                    <button class="btn btn-sm btn-secondary" onclick="showAdmin()">Admin</button>
+                    <button class="btn btn-sm btn-secondary" onclick="showSettings()">Settings</button>
+                    <button class="btn btn-sm btn-danger" onclick="logout()">Logout</button>
+                </div>
+            </header>
+            
+            <div id="dashboard-content" class="users-grid">
+                <div class="alert alert-info">Loading dashboard data...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Page -->
+    <div id="admin-page" class="hidden">
+        <div class="dashboard-container">
+            <header class="dashboard-header">
+                <div class="dashboard-title">
+                    <h1>User Management</h1>
+                    <p class="dashboard-subtitle">Add and manage remote users</p>
+                </div>
+                <div class="dashboard-controls">
+                    <button class="btn btn-sm btn-secondary" onclick="showDashboard()">Dashboard</button>
+                    <button class="btn btn-sm btn-secondary" onclick="showSettings()">Settings</button>
+                    <button class="btn btn-sm btn-danger" onclick="logout()">Logout</button>
+                </div>
+            </header>
+            
+            <!-- Add User Form -->
+            <div class="card">
+                <div class="card-header">
+                    <h5>Add New User</h5>
+                </div>
+                <div class="card-body">
+                    <form id="add-user-form" class="row g-3">
+                        <div class="col-md-6">
+                            <label for="new-username" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="new-username" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="new-system-ip" class="form-label">System IP</label>
+                            <input type="text" class="form-control" id="new-system-ip" placeholder="192.168.1.100" required>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary">Add User</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Users List -->
+            <div id="admin-content">
+                <div class="alert alert-info">Loading users...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Page -->
+    <div id="settings-page" class="hidden">
+        <div class="dashboard-container">
+            <header class="dashboard-header">
+                <div class="dashboard-title">
+                    <h1>Settings</h1>
+                    <p class="dashboard-subtitle">Configure application settings</p>
+                </div>
+                <div class="dashboard-controls">
+                    <button class="btn btn-sm btn-secondary" onclick="showDashboard()">Dashboard</button>
+                    <button class="btn btn-sm btn-secondary" onclick="showAdmin()">Admin</button>
+                    <button class="btn btn-sm btn-danger" onclick="logout()">Logout</button>
+                </div>
+            </header>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5>Change Password</h5>
+                </div>
+                <div class="card-body">
+                    <form id="password-form">
+                        <div class="form-group">
+                            <label for="current-password" class="form-label">Current Password</label>
+                            <input type="password" class="form-control" id="current-password" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-password" class="form-label">New Password</label>
+                            <input type="password" class="form-control" id="new-password" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="confirm-password" class="form-label">Confirm New Password</label>
+                            <input type="password" class="form-control" id="confirm-password" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Change Password</button>
+                    </form>
+                    <div id="password-message" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Time Adjustment Modal -->
+    <div id="timeAdjustModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Adjust Time for <span id="modalUsername"></span></h2>
+                <button class="modal-close" onclick="closeTimeAdjustModal()" type="button">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p style="text-align: center; margin-bottom: var(--space-6);">
+                    Current adjustment: <strong id="timeAdjustment" style="font-size: var(--font-size-lg);">0</strong> minutes
+                </p>
+            
+                <div class="time-controls">
+                    <button class="btn btn-secondary" onclick="adjustTime(-15)">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd" d="M1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0zM8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM4.5 7.5a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5z"/>
+                        </svg>
+                        -15m
+                    </button>
+                    <button class="btn btn-ghost" onclick="resetTime()">Reset</button>
+                    <button class="btn btn-secondary" onclick="adjustTime(15)">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd" d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zM8.5 4.5a.5.5 0 0 0-1 0v3h-3a.5.5 0 0 0 0 1h3v3a.5.5 0 0 0 1 0v-3h3a.5.5 0 0 0 0-1h-3v-3z"/>
+                        </svg>
+                        +15m
+                    </button>
+                </div>
+            
+                <div id="modalStatus" style="text-align: center; margin: var(--space-4) 0; min-height: 20px;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeTimeAdjustModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="submitTimeAdjustment()">Apply Changes</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Schedule Modal -->
+    <div id="scheduleModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2 class="modal-title">Weekly Schedule for <span id="scheduleModalUsername"></span></h2>
+                <button class="modal-close" onclick="closeScheduleModal()" type="button">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Quick Controls -->
+                <div style="display: flex; gap: var(--space-4); margin-bottom: var(--space-6); flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: var(--space-2); background: var(--bg-secondary); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--border-primary);">
+                        <label style="font-size: var(--font-size-sm); font-weight: 500; color: var(--text-secondary); white-space: nowrap;">Quick set hours:</label>
+                        <button type="button" class="btn btn-sm btn-ghost" onclick="adjustBulkTime(-0.25)">-15min</button>
+                        <input type="number" id="bulk-hours" min="0" max="24" step="0.25" placeholder="2.5" style="width: 80px; padding: var(--space-2); border: 1px solid var(--border-primary); border-radius: var(--radius-sm); background: var(--bg-elevated); color: var(--text-primary); text-align: center;">
+                        <button type="button" class="btn btn-sm btn-ghost" onclick="adjustBulkTime(0.25)">+15min</button>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="setWeekdays()">Weekdays</button>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="setWeekends()">Weekends</button>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="setAllDays()">All Days</button>
+                    </div>
+                </div>
+
+                <form id="schedule-form">
+                    <input type="hidden" id="scheduleUserId" name="user_id" value="">
+                    
+                    <!-- Schedule Table -->
+                    <div style="background: var(--bg-elevated); border: 1px solid var(--border-primary); border-radius: var(--radius-xl); overflow: hidden;">
+                        <div style="background: var(--bg-secondary); border-bottom: 2px solid var(--border-primary); padding: var(--space-4) var(--space-6); display: grid; grid-template-columns: 120px 1fr; gap: var(--space-4); align-items: center; font-weight: 600; color: var(--text-primary);">
+                            <div>Day</div>
+                            <div>Daily Time Limit</div>
+                        </div>
+                        
+                        <div id="schedule-rows"></div>
+                    </div>
+                </form>
+                
+                <div id="scheduleModalStatus" style="text-align: center; margin: var(--space-4) 0; min-height: 20px;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeScheduleModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="submitSchedule()">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="margin-right: var(--space-2);">
+                        <path d="M15.854 5.146a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 0 1 .708-.708L12.5 7.793l2.646-2.647a.5.5 0 0 1 .708 0z"/>
+                    </svg>
+                    Save Schedule
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notification Toast -->
+    <div id="notification-toast" class="notification-toast">
+        <div class="toast-content">
+            <svg class="toast-icon" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.061L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
+            </svg>
+            <span class="toast-message">Changes saved successfully!</span>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
