@@ -22,15 +22,47 @@ function showPage(pageId) {
 }
 
 
+// Token management
+function getToken() {
+    return localStorage.getItem('jwt_token');
+}
+
+function setToken(token) {
+    localStorage.setItem('jwt_token', token);
+}
+
+function removeToken() {
+    localStorage.removeItem('jwt_token');
+}
+
+function isTokenExpired(token) {
+    if (!token) return true;
+    
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const currentTime = Math.floor(Date.now() / 1000);
+        return payload.exp < currentTime;
+    } catch (error) {
+        return true;
+    }
+}
+
 // API functions
 async function apiCall(endpoint, method = 'GET', data = null) {
     const config = {
         method,
-        credentials: 'include',
         headers: {
             'Content-Type': 'application/json',
         }
     };
+    
+    // Add Authorization header for authenticated endpoints (except login)
+    if (endpoint !== '/login') {
+        const token = getToken();
+        if (token && !isTokenExpired(token)) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+    }
     
     if (data) {
         config.body = JSON.stringify(data);
@@ -41,7 +73,8 @@ async function apiCall(endpoint, method = 'GET', data = null) {
         const result = await response.json();
         
         if (response.status === 401) {
-            // Unauthorized - redirect to login
+            // Token expired or invalid - clear token and redirect to login
+            removeToken();
             showLogin();
             return null;
         }
@@ -58,7 +91,8 @@ async function apiCall(endpoint, method = 'GET', data = null) {
 async function login(username, password) {
     const result = await apiCall('/login', 'POST', { username, password });
     
-    if (result && result.success) {
+    if (result && result.success && result.token) {
+        setToken(result.token);
         currentUser = username;
         showDashboard();
         return true;
@@ -68,7 +102,8 @@ async function login(username, password) {
 }
 
 async function logout() {
-    await apiCall('/logout', 'POST');
+    // Clear the JWT token
+    removeToken();
     currentUser = null;
     showLogin();
 }
@@ -460,13 +495,23 @@ async function changePassword(currentPassword, newPassword, confirmPassword) {
 // Event listeners
 // Check if user is already logged in
 async function checkSession() {
+    const token = getToken();
+    if (!token || isTokenExpired(token)) {
+        removeToken();
+        return false;
+    }
+    
+    // Token exists and is valid, try to access dashboard
     const result = await apiCall('/dashboard');
     if (result && result.success) {
         currentUser = 'admin'; // We know it's admin since login succeeded
         showDashboard();
         return true;
+    } else {
+        // Token might be invalid on server side
+        removeToken();
+        return false;
     }
-    return false;
 }
 
 document.addEventListener('DOMContentLoaded', async function() {
