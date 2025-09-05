@@ -7,7 +7,6 @@ edition = "2021"
 # Web framework
 actix-web = "4.9"
 actix-files = "0.6"
-actix-session = { version = "0.10", features = ["cookie-session"] }
 actix-cors = "0.7"
 
 # Async runtime
@@ -57,3 +56,6 @@ base64 = "0.22"
 # Auto-generated OpenAPI documentation
 utoipa = { version = "4.2", features = ["actix_extras", "chrono"] }
 utoipa-swagger-ui = { version = "6.0", features = ["actix-web"] }
+
+# JWT authentication
+jsonwebtoken = "9.3"

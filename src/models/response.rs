@@ -19,6 +19,8 @@ pub struct ErrorResponse {
 pub struct LoginResponse {
     pub success: bool,
     pub message: String,
+    pub token: String,
+    pub expires_in: u64,  // seconds
 }
 
 // User management responses

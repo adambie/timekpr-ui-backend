@@ -1,6 +1,4 @@
 use actix_web::{web, App, HttpServer, HttpResponse, Result, middleware};
-use actix_session::{Session, SessionMiddleware, storage::CookieSessionStore};
-use actix_web::cookie::Key;
 use actix_cors::Cors;
 use serde_json;
 use sqlx::SqlitePool;
@@ -10,16 +8,23 @@ use chrono::Utc;
 mod ssh;
 mod scheduler;
 mod models;
+mod auth;
+mod openapi_config;
 use ssh::SSHClient;
 use scheduler::BackgroundScheduler;
 use models::*;
+use auth::{JwtManager, verify_jwt};
+use openapi_config::configure_openapi;
 
 #[derive(OpenApi)]
 #[openapi(
     info(
         title = "TimeKpr UI API",
         version = "0.1.0",
-        description = "REST API for TimeKpr UI - Remote management for Timekpr-nExT parental control software"
+        description = "REST API for TimeKpr UI - Remote management for Timekpr-nExT parental control software. Authentication uses JWT tokens via Bearer authorization header."
+    ),
+    servers(
+        (url = "http://localhost:5000", description = "Local development server")
     ),
     paths(
         login_api,
@@ -73,14 +78,15 @@ struct ApiDoc;
     path = "/api/login",
     request_body = LoginForm,
     responses(
-        (status = 200, description = "Login successful", body = LoginResponse),
+        (status = 200, description = "Login successful - JWT token returned in response body", body = LoginResponse),
         (status = 401, description = "Invalid credentials", body = ErrorResponse)
-    )
+    ),
+    security()
 )]
 async fn login_api(
     pool: web::Data<SqlitePool>,
     form: web::Json<LoginForm>,
-    session: Session,
+    jwt_manager: web::Data<JwtManager>,
 ) -> Result<HttpResponse> {
     if form.username == "admin" {
         // Check admin password
@@ -96,11 +102,23 @@ async fn login_api(
                 
                 if let Ok(parsed_hash) = PasswordHash::new(&hash) {
                     if Argon2::default().verify_password(form.password.as_bytes(), &parsed_hash).is_ok() {
-                        session.insert("logged_in", true).map_err(|_| actix_web::error::ErrorInternalServerError("Session error"))?;
-                        return Ok(HttpResponse::Ok().json(LoginResponse {
-                            success: true,
-                            message: "Login successful".to_string(),
-                        }));
+                        // Generate JWT token
+                        match jwt_manager.generate_token(&form.username) {
+                            Ok(token) => {
+                                return Ok(HttpResponse::Ok().json(LoginResponse {
+                                    success: true,
+                                    message: "Login successful".to_string(),
+                                    token,
+                                    expires_in: 24 * 3600, // 24 hours in seconds
+                                }));
+                            }
+                            Err(_) => {
+                                return Ok(HttpResponse::InternalServerError().json(ErrorResponse {
+                                    success: false,
+                                    message: "Failed to generate token".to_string(),
+                                }));
+                            }
+                        }
                     }
                 }
             }
@@ -120,18 +138,23 @@ async fn login_api(
     path = "/api/logout",
     responses(
         (status = 200, description = "Logout successful", body = ApiResponse)
-    )
+    ),
+    security()
 )]
-async fn logout_api(session: Session) -> Result<HttpResponse> {
-    session.remove("logged_in");
+async fn logout_api() -> Result<HttpResponse> {
+    // With JWT, logout is handled client-side by discarding the token
+    // Server doesn't need to track token state
     Ok(HttpResponse::Ok().json(ApiResponse {
         success: true,
-        message: "Logged out successfully".to_string(),
+        message: "Logout successful - discard your token".to_string(),
     }))
 }
 
-fn is_authenticated(session: &Session) -> bool {
-    session.get::<bool>("logged_in").unwrap_or(Some(false)).unwrap_or(false)
+fn authenticate_request(req: &actix_web::HttpRequest, jwt_manager: &JwtManager) -> Result<(), actix_web::Error> {
+    match verify_jwt(req, jwt_manager) {
+        Ok(_claims) => Ok(()),
+        Err(e) => Err(e),
+    }
 }
 
 #[utoipa::path(
@@ -144,12 +167,13 @@ fn is_authenticated(session: &Session) -> bool {
 )]
 async fn dashboard_api(
     pool: web::Data<SqlitePool>, 
-    session: Session
+    req: actix_web::HttpRequest,
+    jwt_manager: web::Data<JwtManager>,
 ) -> Result<HttpResponse> {
-    if !is_authenticated(&session) {
+    if let Err(_) = authenticate_request(&req, &jwt_manager) {
         return Ok(HttpResponse::Unauthorized().json(ErrorResponse {
             success: false,
-            message: "Not authenticated".to_string(),
+            message: "Not authenticated - valid JWT token required".to_string(),
         }));
     }
     
@@ -233,12 +257,13 @@ async fn dashboard_api(
 )]
 async fn admin_api(
     pool: web::Data<SqlitePool>, 
-    session: Session
+    req: actix_web::HttpRequest,
+    jwt_manager: web::Data<JwtManager>,
 ) -> Result<HttpResponse> {
-    if !is_authenticated(&session) {
+    if let Err(_) = authenticate_request(&req, &jwt_manager) {
         return Ok(HttpResponse::Unauthorized().json(ErrorResponse {
             success: false,
-            message: "Not authenticated".to_string(),
+            message: "Not authenticated - valid JWT token required".to_string(),
         }));
     }
 
@@ -290,9 +315,9 @@ async fn admin_api(
 async fn change_password_api(
     pool: web::Data<SqlitePool>,
     form: web::Json<PasswordChangeForm>,
-    session: Session,
+    req: actix_web::HttpRequest, jwt_manager: web::Data<JwtManager>,
 ) -> Result<HttpResponse> {
-    if !is_authenticated(&session) {
+    if let Err(_) = authenticate_request(&req, &jwt_manager) {
         return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
             "success": false,
             "message": "Not authenticated"
@@ -412,9 +437,9 @@ async fn change_password_api(
 async fn add_user_api(
     pool: web::Data<SqlitePool>,
     form: web::Json<AddUserForm>,
-    session: Session,
+    req: actix_web::HttpRequest, jwt_manager: web::Data<JwtManager>,
 ) -> Result<HttpResponse> {
-    if !is_authenticated(&session) {
+    if let Err(_) = authenticate_request(&req, &jwt_manager) {
         return Ok(HttpResponse::Unauthorized().json("Not authenticated"));
     }
 
@@ -499,9 +524,9 @@ async fn add_user_api(
 async fn validate_user(
     pool: web::Data<SqlitePool>,
     path: web::Path<i64>,
-    session: Session,
+    req: actix_web::HttpRequest, jwt_manager: web::Data<JwtManager>,
 ) -> Result<HttpResponse> {
-    if !is_authenticated(&session) {
+    if let Err(_) = authenticate_request(&req, &jwt_manager) {
         return Ok(HttpResponse::Unauthorized().json("Not authenticated"));
     }
 
@@ -560,9 +585,9 @@ async fn validate_user(
 async fn delete_user(
     pool: web::Data<SqlitePool>,
     path: web::Path<i64>,
-    session: Session,
+    req: actix_web::HttpRequest, jwt_manager: web::Data<JwtManager>,
 ) -> Result<HttpResponse> {
-    if !is_authenticated(&session) {
+    if let Err(_) = authenticate_request(&req, &jwt_manager) {
         return Ok(HttpResponse::Unauthorized().json("Not authenticated"));
     }
 
@@ -605,9 +630,9 @@ async fn delete_user(
 async fn modify_time(
     pool: web::Data<SqlitePool>,
     form: web::Json<ModifyTimeForm>,
-    session: Session,
+    req: actix_web::HttpRequest, jwt_manager: web::Data<JwtManager>,
 ) -> Result<HttpResponse> {
-    if !is_authenticated(&session) {
+    if let Err(_) = authenticate_request(&req, &jwt_manager) {
         return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
             "success": false,
             "message": "Not authenticated"
@@ -721,9 +746,9 @@ async fn modify_time(
 async fn get_user_usage(
     pool: web::Data<SqlitePool>,
     path: web::Path<i64>,
-    session: Session,
+    req: actix_web::HttpRequest, jwt_manager: web::Data<JwtManager>,
 ) -> Result<HttpResponse> {
-    if !is_authenticated(&session) {
+    if let Err(_) = authenticate_request(&req, &jwt_manager) {
         return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
             "success": false,
             "message": "Not authenticated"
@@ -798,10 +823,10 @@ async fn get_user_usage(
 )]
 async fn get_task_status(
     pool: web::Data<SqlitePool>,
-    session: Session,
+    req: actix_web::HttpRequest, jwt_manager: web::Data<JwtManager>,
     scheduler: web::Data<std::sync::Arc<BackgroundScheduler>>,
 ) -> Result<HttpResponse> {
-    if !is_authenticated(&session) {
+    if let Err(_) = authenticate_request(&req, &jwt_manager) {
         return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
             "success": false,
             "message": "Not authenticated"
@@ -840,9 +865,9 @@ async fn get_task_status(
 async fn update_schedule_api(
     pool: web::Data<SqlitePool>,
     form: web::Json<ScheduleUpdateForm>,
-    session: Session,
+    req: actix_web::HttpRequest, jwt_manager: web::Data<JwtManager>,
 ) -> Result<HttpResponse> {
-    if !is_authenticated(&session) {
+    if let Err(_) = authenticate_request(&req, &jwt_manager) {
         return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
             "success": false,
             "message": "Not authenticated"
@@ -929,9 +954,9 @@ async fn update_schedule_api(
 async fn get_schedule_sync_status(
     pool: web::Data<SqlitePool>,
     path: web::Path<i64>,
-    session: Session,
+    req: actix_web::HttpRequest, jwt_manager: web::Data<JwtManager>,
 ) -> Result<HttpResponse> {
-    if !is_authenticated(&session) {
+    if let Err(_) = authenticate_request(&req, &jwt_manager) {
         return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
             "success": false,
             "message": "Not authenticated"
@@ -999,8 +1024,8 @@ async fn get_schedule_sync_status(
         (status = 401, description = "Not authenticated", body = ErrorResponse)
     )
 )]
-async fn get_ssh_status(session: Session) -> Result<HttpResponse> {
-    if !is_authenticated(&session) {
+async fn get_ssh_status(req: actix_web::HttpRequest, jwt_manager: web::Data<JwtManager>) -> Result<HttpResponse> {
+    if let Err(_) = authenticate_request(&req, &jwt_manager) {
         return Ok(HttpResponse::Unauthorized().json(ErrorResponse {
             success: false,
             message: "Not authenticated".to_string(),
@@ -1047,25 +1072,27 @@ async fn main() -> anyhow::Result<()> {
             .bind(password_hash.to_string())
             .execute(&pool)
             .await?;
-        
-        println!("Admin password initialized");
     }
 
     // Initialize and start background scheduler
     let scheduler = std::sync::Arc::new(BackgroundScheduler::new(pool.clone()));
     scheduler.start().await;
-    println!("Background scheduler started");
 
-    println!("Server listening on 0.0.0.0:5000");
-    println!("API documentation available at: http://localhost:5000/swagger-ui/");
+    // Initialize JWT manager with secret key
+    let jwt_secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "your-secret-key-change-in-production".to_string());
+    let jwt_manager = web::Data::new(JwtManager::new(&jwt_secret));
+
+    println!("TimeKpr UI Server listening on http://localhost:5000");
+    println!("📚 API Documentation: http://localhost:5000/swagger-ui/");
     
-    // Generate a random key for sessions
-    let secret_key = Key::generate();
+    // Configure OpenAPI spec with Bearer auth (do this once, outside the closure)
+    let openapi_spec = configure_openapi(ApiDoc::openapi());
     
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(pool.clone()))
             .app_data(web::Data::from(scheduler.clone()))
+            .app_data(jwt_manager.clone())
             .wrap(
                 Cors::default()
                     .allow_any_origin()
@@ -1073,15 +1100,11 @@ async fn main() -> anyhow::Result<()> {
                     .allow_any_header()
                     .supports_credentials()
             )
-            .wrap(SessionMiddleware::new(
-                CookieSessionStore::default(),
-                secret_key.clone()
-            ))
             .wrap(middleware::Logger::default())
             // Swagger UI for API documentation
             .service(
                 utoipa_swagger_ui::SwaggerUi::new("/swagger-ui/{_:.*}")
-                    .url("/api-docs/openapi.json", ApiDoc::openapi())
+                    .url("/api-docs/openapi.json", openapi_spec.clone())
             )
             // API endpoints only - no static file serving (frontend will be separate)
             .route("/api/login", web::post().to(login_api))

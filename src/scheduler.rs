@@ -22,7 +22,6 @@ impl BackgroundScheduler {
     pub async fn start(&self) {
         let mut running = self.running.write().await;
         if *running {
-            println!("Background scheduler is already running");
             return;
         }
         *running = true;
@@ -31,7 +30,6 @@ impl BackgroundScheduler {
         let running_flag = Arc::clone(&self.running);
         
         tokio::spawn(async move {
-            println!("Background scheduler started");
             let mut interval = interval(Duration::from_secs(30)); // Run every 30 seconds
             
             loop {
@@ -41,7 +39,6 @@ impl BackgroundScheduler {
                 {
                     let running = running_flag.read().await;
                     if !*running {
-                        println!("Background scheduler stopped");
                         break;
                     }
                 }
@@ -61,7 +58,6 @@ impl BackgroundScheduler {
     pub async fn stop(&self) {
         let mut running = self.running.write().await;
         *running = false;
-        println!("Background scheduler stop requested");
     }
 
     pub async fn is_running(&self) -> bool {
@@ -110,11 +106,7 @@ impl BackgroundScheduler {
                         }
                     }
 
-                    if is_valid {
-                        println!("Updated user: {} on {}", user.username, user.system_ip);
-                    } else {
-                        println!("Failed to update user: {} on {}", user.username, user.system_ip);
-                    }
+                    // Silent background updates - only log errors if needed
                     
                     // Small delay between users to avoid overwhelming SSH connections
                     sleep(Duration::from_millis(100)).await;
@@ -150,10 +142,6 @@ impl BackgroundScheduler {
                             .bind(user.id)
                             .execute(pool)
                             .await;
-                            
-                            println!("Applied pending adjustment for {}: {}{} seconds - {}", user.username, operation, adjustment, message);
-                        } else {
-                            println!("Failed to apply pending adjustment for {}: {}", user.username, message);
                         }
                     }
                     
@@ -183,8 +171,6 @@ impl BackgroundScheduler {
         match users_with_schedules {
             Ok(schedules) => {
                 for schedule in schedules {
-                    println!("Syncing schedule for user {} on {}", schedule.username, schedule.system_ip);
-                    
                     // Create schedule dict with non-null values only
                     let mut schedule_dict = std::collections::HashMap::new();
                     if let Some(hours) = schedule.monday_hours { schedule_dict.insert("monday".to_string(), hours); }
@@ -199,8 +185,6 @@ impl BackgroundScheduler {
                     let (success, message) = ssh_client.set_weekly_time_limits(&schedule.username, &schedule_dict).await;
                     
                     if success {
-                        println!("Successfully synced schedule for {}: {}", schedule.username, message);
-                        
                         // Mark as synced
                         let _result = sqlx::query(
                             "UPDATE user_weekly_schedule SET is_synced = 1, last_synced = ? WHERE user_id = ?"
@@ -209,8 +193,6 @@ impl BackgroundScheduler {
                         .bind(schedule.id)
                         .execute(pool)
                         .await;
-                    } else {
-                        println!("Failed to sync schedule for {}: {}", schedule.username, message);
                     }
                     
                     // Small delay between syncs
