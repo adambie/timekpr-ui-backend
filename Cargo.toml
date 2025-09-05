@@ -53,3 +53,7 @@ actix-web-httpauth = "0.8"
 # Random generation and encoding
 rand = "0.8"
 base64 = "0.22"
+
+# Auto-generated OpenAPI documentation
+utoipa = { version = "4.2", features = ["actix_extras", "chrono"] }
+utoipa-swagger-ui = { version = "6.0", features = ["actix-web"] }

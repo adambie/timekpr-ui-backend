@@ -2,68 +2,81 @@ use actix_web::{web, App, HttpServer, HttpResponse, Result, middleware};
 use actix_session::{Session, SessionMiddleware, storage::CookieSessionStore};
 use actix_web::cookie::Key;
 use actix_cors::Cors;
-use serde::{Deserialize, Serialize};
 use serde_json;
-use sqlx::{SqlitePool, FromRow};
-use chrono::{DateTime, Utc};
+use sqlx::SqlitePool;
+use utoipa::OpenApi;
+use chrono::Utc;
 
 mod ssh;
 mod scheduler;
+mod models;
 use ssh::SSHClient;
 use scheduler::BackgroundScheduler;
+use models::*;
 
-#[derive(Deserialize)]
-struct ScheduleUpdateForm {
-    user_id: i64,
-    monday: f64,
-    tuesday: f64,
-    wednesday: f64,
-    thursday: f64,
-    friday: f64,
-    saturday: f64,
-    sunday: f64,
-}
+#[derive(OpenApi)]
+#[openapi(
+    info(
+        title = "TimeKpr UI API",
+        version = "0.1.0",
+        description = "REST API for TimeKpr UI - Remote management for Timekpr-nExT parental control software"
+    ),
+    paths(
+        login_api,
+        logout_api,
+        dashboard_api,
+        admin_api,
+        change_password_api,
+        add_user_api,
+        validate_user,
+        delete_user,
+        modify_time,
+        get_user_usage,
+        update_schedule_api,
+        get_schedule_sync_status,
+        get_task_status,
+        get_ssh_status
+    ),
+    components(
+        schemas(
+            LoginForm,
+            AddUserForm,
+            ModifyTimeForm,
+            PasswordChangeForm,
+            ScheduleUpdateForm,
+            ManagedUser,
+            ApiResponse,
+            LoginResponse,
+            UserData,
+            DashboardResponse,
+            AdminUserData,
+            AdminResponse,
+            ModifyTimeResponse,
+            UsageData,
+            UsageResponse,
+            TaskStatusData,
+            TaskStatusResponse,
+            ScheduleData,
+            ScheduleSyncResponse,
+            SshStatusResponse,
+            ErrorResponse
+        )
+    )
+)]
+struct ApiDoc;
 
-#[derive(Deserialize)]
-struct LoginForm {
-    username: String,
-    password: String,
-}
-
-#[derive(Deserialize)]
-struct AddUserForm {
-    username: String,
-    system_ip: String,
-}
-
-#[derive(Deserialize)]
-struct ModifyTimeForm {
-    user_id: i64,
-    operation: String,
-    seconds: i64,
-}
-
-#[derive(Deserialize)]
-struct PasswordChangeForm {
-    current_password: String,
-    new_password: String,
-    confirm_password: String,
-}
-
-#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
-struct ManagedUser {
-    pub id: i64,
-    pub username: String,
-    pub system_ip: String,
-    pub is_valid: bool,
-    pub last_checked: Option<DateTime<Utc>>,
-    pub last_config: Option<String>,
-    pub pending_time_adjustment: Option<i64>,
-    pub pending_time_operation: Option<String>,
-}
 
 // Remove - frontend will serve its own login page
 
+#[utoipa::path(
+    post,
+    path = "/api/login",
+    request_body = LoginForm,
+    responses(
+        (status = 200, description = "Login successful", body = LoginResponse),
+        (status = 401, description = "Invalid credentials", body = ErrorResponse)
+    )
+)]
 async fn login_api(
     pool: web::Data<SqlitePool>,
     form: web::Json<LoginForm>,
@@ -84,10 +97,10 @@ async fn login_api(
                 if let Ok(parsed_hash) = PasswordHash::new(&hash) {
                     if Argon2::default().verify_password(form.password.as_bytes(), &parsed_hash).is_ok() {
                         session.insert("logged_in", true).map_err(|_| actix_web::error::ErrorInternalServerError("Session error"))?;
-                        return Ok(HttpResponse::Ok().json(serde_json::json!({
-                            "success": true,
-                            "message": "Login successful"
-                        })));
+                        return Ok(HttpResponse::Ok().json(LoginResponse {
+                            success: true,
+                            message: "Login successful".to_string(),
+                        }));
                     }
                 }
             }
@@ -96,33 +109,48 @@ async fn login_api(
     }
     
     // Login failed
-    Ok(HttpResponse::Unauthorized().json(serde_json::json!({
-        "success": false,
-        "message": "Invalid credentials"
-    })))
+    Ok(HttpResponse::Unauthorized().json(ErrorResponse {
+        success: false,
+        message: "Invalid credentials".to_string(),
+    }))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/logout",
+    responses(
+        (status = 200, description = "Logout successful", body = ApiResponse)
+    )
+)]
 async fn logout_api(session: Session) -> Result<HttpResponse> {
     session.remove("logged_in");
-    Ok(HttpResponse::Ok().json(serde_json::json!({
-        "success": true,
-        "message": "Logged out successfully"
-    })))
+    Ok(HttpResponse::Ok().json(ApiResponse {
+        success: true,
+        message: "Logged out successfully".to_string(),
+    }))
 }
 
 fn is_authenticated(session: &Session) -> bool {
     session.get::<bool>("logged_in").unwrap_or(Some(false)).unwrap_or(false)
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/dashboard",
+    responses(
+        (status = 200, description = "Dashboard data retrieved", body = DashboardResponse),
+        (status = 401, description = "Not authenticated", body = ErrorResponse)
+    )
+)]
 async fn dashboard_api(
     pool: web::Data<SqlitePool>, 
     session: Session
 ) -> Result<HttpResponse> {
     if !is_authenticated(&session) {
-        return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
-            "success": false,
-            "message": "Not authenticated"
-        })));
+        return Ok(HttpResponse::Unauthorized().json(ErrorResponse {
+            success: false,
+            message: "Not authenticated".to_string(),
+        }));
     }
     
     // Get all valid users from database
@@ -178,32 +206,40 @@ async fn dashboard_api(
 
         println!("User {}: time_left_formatted = '{}', config = {:?}", user.username, time_left_formatted, user.last_config);
         
-        user_data.push(serde_json::json!({
-            "id": user.id,
-            "username": user.username,
-            "system_ip": user.system_ip,
-            "time_left": time_left_formatted,
-            "last_checked": last_checked_str,
-            "pending_adjustment": pending_adjustment,
-            "pending_schedule": pending_schedule
-        }));
+        user_data.push(UserData {
+            id: user.id,
+            username: user.username,
+            system_ip: user.system_ip,
+            time_left: time_left_formatted,
+            last_checked: last_checked_str,
+            pending_adjustment,
+            pending_schedule,
+        });
     }
 
-    Ok(HttpResponse::Ok().json(serde_json::json!({
-        "success": true,
-        "users": user_data
-    })))
+    Ok(HttpResponse::Ok().json(DashboardResponse {
+        success: true,
+        users: user_data,
+    }))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/admin",
+    responses(
+        (status = 200, description = "Admin user data retrieved", body = AdminResponse),
+        (status = 401, description = "Not authenticated", body = ErrorResponse)
+    )
+)]
 async fn admin_api(
     pool: web::Data<SqlitePool>, 
     session: Session
 ) -> Result<HttpResponse> {
     if !is_authenticated(&session) {
-        return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
-            "success": false,
-            "message": "Not authenticated"
-        })));
+        return Ok(HttpResponse::Unauthorized().json(ErrorResponse {
+            success: false,
+            message: "Not authenticated".to_string(),
+        }));
     }
 
     // Get all users from database
@@ -224,23 +260,33 @@ async fn admin_api(
             .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
             .unwrap_or_else(|| "Never".to_string());
 
-        user_data.push(serde_json::json!({
-            "id": user.id,
-            "username": user.username,
-            "system_ip": user.system_ip,
-            "is_valid": user.is_valid,
-            "last_checked": last_checked_str
-        }));
+        user_data.push(AdminUserData {
+            id: user.id,
+            username: user.username,
+            system_ip: user.system_ip,
+            is_valid: user.is_valid,
+            last_checked: last_checked_str,
+        });
     }
 
-    Ok(HttpResponse::Ok().json(serde_json::json!({
-        "success": true,
-        "users": user_data
-    })))
+    Ok(HttpResponse::Ok().json(AdminResponse {
+        success: true,
+        users: user_data,
+    }))
 }
 
 // Remove - settings will be handled by password change API endpoint
 
+#[utoipa::path(
+    post,
+    path = "/api/change-password",
+    request_body = PasswordChangeForm,
+    responses(
+        (status = 200, description = "Password changed successfully", body = ApiResponse),
+        (status = 400, description = "Invalid input", body = ErrorResponse),
+        (status = 401, description = "Authentication failed", body = ErrorResponse)
+    )
+)]
 async fn change_password_api(
     pool: web::Data<SqlitePool>,
     form: web::Json<PasswordChangeForm>,
@@ -352,6 +398,17 @@ async fn change_password_api(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/users/add",
+    request_body = AddUserForm,
+    responses(
+        (status = 200, description = "User added successfully", body = ApiResponse),
+        (status = 400, description = "Invalid input", body = ErrorResponse),
+        (status = 401, description = "Not authenticated", body = ErrorResponse),
+        (status = 409, description = "User already exists", body = ErrorResponse)
+    )
+)]
 async fn add_user_api(
     pool: web::Data<SqlitePool>,
     form: web::Json<AddUserForm>,
@@ -428,6 +485,17 @@ async fn add_user_api(
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/users/validate/{id}",
+    params(
+        ("id" = i64, Path, description = "User ID")
+    ),
+    responses(
+        (status = 200, description = "User validation completed"),
+        (status = 401, description = "Not authenticated")
+    )
+)]
 async fn validate_user(
     pool: web::Data<SqlitePool>,
     path: web::Path<i64>,
@@ -477,6 +545,18 @@ async fn validate_user(
     })))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/users/delete/{id}",
+    params(
+        ("id" = i64, Path, description = "User ID")
+    ),
+    responses(
+        (status = 200, description = "User deleted successfully"),
+        (status = 401, description = "Not authenticated"),
+        (status = 500, description = "Failed to delete user")
+    )
+)]
 async fn delete_user(
     pool: web::Data<SqlitePool>,
     path: web::Path<i64>,
@@ -511,6 +591,17 @@ async fn delete_user(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/modify-time",
+    request_body = ModifyTimeForm,
+    responses(
+        (status = 200, description = "Time modified successfully", body = ModifyTimeResponse),
+        (status = 400, description = "Invalid operation", body = ErrorResponse),
+        (status = 401, description = "Not authenticated", body = ErrorResponse),
+        (status = 404, description = "User not found", body = ErrorResponse)
+    )
+)]
 async fn modify_time(
     pool: web::Data<SqlitePool>,
     form: web::Json<ModifyTimeForm>,
@@ -615,6 +706,18 @@ async fn modify_time(
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/user/{id}/usage",
+    params(
+        ("id" = i64, Path, description = "User ID")
+    ),
+    responses(
+        (status = 200, description = "User usage data retrieved", body = UsageResponse),
+        (status = 401, description = "Not authenticated", body = ErrorResponse),
+        (status = 404, description = "User not found", body = ErrorResponse)
+    )
+)]
 async fn get_user_usage(
     pool: web::Data<SqlitePool>,
     path: web::Path<i64>,
@@ -685,6 +788,14 @@ async fn get_user_usage(
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/task-status",
+    responses(
+        (status = 200, description = "Background task status retrieved", body = TaskStatusResponse),
+        (status = 401, description = "Not authenticated", body = ErrorResponse)
+    )
+)]
 async fn get_task_status(
     pool: web::Data<SqlitePool>,
     session: Session,
@@ -716,6 +827,16 @@ async fn get_task_status(
     })))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/schedule/update",
+    request_body = ScheduleUpdateForm,
+    responses(
+        (status = 200, description = "Schedule updated successfully", body = ApiResponse),
+        (status = 400, description = "Invalid schedule values", body = ErrorResponse),
+        (status = 401, description = "Not authenticated", body = ErrorResponse)
+    )
+)]
 async fn update_schedule_api(
     pool: web::Data<SqlitePool>,
     form: web::Json<ScheduleUpdateForm>,
@@ -794,6 +915,17 @@ async fn update_schedule_api(
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/schedule-sync-status/{id}",
+    params(
+        ("id" = i64, Path, description = "User ID")
+    ),
+    responses(
+        (status = 200, description = "Schedule sync status retrieved", body = ScheduleSyncResponse),
+        (status = 401, description = "Not authenticated", body = ErrorResponse)
+    )
+)]
 async fn get_schedule_sync_status(
     pool: web::Data<SqlitePool>,
     path: web::Path<i64>,
@@ -859,25 +991,33 @@ async fn get_schedule_sync_status(
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/ssh-status",
+    responses(
+        (status = 200, description = "SSH status retrieved", body = SshStatusResponse),
+        (status = 401, description = "Not authenticated", body = ErrorResponse)
+    )
+)]
 async fn get_ssh_status(session: Session) -> Result<HttpResponse> {
     if !is_authenticated(&session) {
-        return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
-            "success": false,
-            "message": "Not authenticated"
-        })));
+        return Ok(HttpResponse::Unauthorized().json(ErrorResponse {
+            success: false,
+            message: "Not authenticated".to_string(),
+        }));
     }
 
     let ssh_key_exists = SSHClient::check_ssh_key_exists();
     
-    Ok(HttpResponse::Ok().json(serde_json::json!({
-        "success": true,
-        "ssh_key_exists": ssh_key_exists,
-        "message": if ssh_key_exists {
-            "SSH keys are configured"
+    Ok(HttpResponse::Ok().json(SshStatusResponse {
+        success: true,
+        ssh_key_exists,
+        message: if ssh_key_exists {
+            "SSH keys are configured".to_string()
         } else {
-            "SSH keys not found. Please configure SSH keys for passwordless authentication."
-        }
-    })))
+            "SSH keys not found. Please configure SSH keys for passwordless authentication.".to_string()
+        },
+    }))
 }
 
 #[actix_web::main]
@@ -917,6 +1057,7 @@ async fn main() -> anyhow::Result<()> {
     println!("Background scheduler started");
 
     println!("Server listening on 0.0.0.0:5000");
+    println!("API documentation available at: http://localhost:5000/swagger-ui/");
     
     // Generate a random key for sessions
     let secret_key = Key::generate();
@@ -937,6 +1078,11 @@ async fn main() -> anyhow::Result<()> {
                 secret_key.clone()
             ))
             .wrap(middleware::Logger::default())
+            // Swagger UI for API documentation
+            .service(
+                utoipa_swagger_ui::SwaggerUi::new("/swagger-ui/{_:.*}")
+                    .url("/api-docs/openapi.json", ApiDoc::openapi())
+            )
             // API endpoints only - no static file serving (frontend will be separate)
             .route("/api/login", web::post().to(login_api))
             .route("/api/logout", web::post().to(logout_api))
