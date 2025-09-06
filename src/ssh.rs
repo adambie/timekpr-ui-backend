@@ -32,7 +32,7 @@ impl SSHClient {
         }
         
         // Check home directory keys
-        if let Some(home) = std::env::home_dir() {
+        if let Some(home) = dirs::home_dir() {
             let id_rsa = home.join(".ssh/id_rsa");
             let id_ed25519 = home.join(".ssh/id_ed25519");
             
@@ -275,30 +275,4 @@ impl SSHClient {
         }
     }
 
-    pub async fn check_connectivity(&self) -> bool {
-        // Find SSH key path
-        let key_path = match Self::find_ssh_key_path() {
-            Some(path) => path,
-            None => return false,
-        };
-        
-        let target_host = format!("timekpr-remote@{}", self.hostname);
-        
-        let output = Command::new("ssh")
-            .args(&[
-                "-i", &key_path,
-                "-o", "ConnectTimeout=5",
-                "-o", "StrictHostKeyChecking=no",
-                "-o", "BatchMode=yes",
-                "-o", "PasswordAuthentication=no",
-                &target_host,
-                "echo 'connection_test'"
-            ])
-            .output();
-
-        match output {
-            Ok(result) => result.status.success(),
-            Err(_) => false,
-        }
-    }
 }

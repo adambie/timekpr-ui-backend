@@ -8,6 +8,7 @@ pub struct ManagedUser {
     pub username: String,
     pub system_ip: String,
     pub is_valid: bool,
+    pub date_added: Option<DateTime<Utc>>,
     pub last_checked: Option<DateTime<Utc>>,
     pub last_config: Option<String>,
     pub pending_time_adjustment: Option<i64>,

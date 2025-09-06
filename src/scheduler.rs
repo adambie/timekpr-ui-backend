@@ -4,8 +4,7 @@ use tokio::time::{interval, sleep};
 use sqlx::SqlitePool;
 use chrono::Utc;
 use crate::ssh::SSHClient;
-use crate::ManagedUser;
-
+use crate::models::ManagedUser;
 pub struct BackgroundScheduler {
     pool: Arc<SqlitePool>,
     running: Arc<tokio::sync::RwLock<bool>>,
@@ -55,10 +54,6 @@ impl BackgroundScheduler {
         });
     }
 
-    pub async fn stop(&self) {
-        let mut running = self.running.write().await;
-        *running = false;
-    }
 
     pub async fn is_running(&self) -> bool {
         *self.running.read().await
@@ -131,7 +126,7 @@ impl BackgroundScheduler {
                 for user in users {
                     if let (Some(adjustment), Some(operation)) = (&user.pending_time_adjustment, &user.pending_time_operation) {
                         let ssh_client = SSHClient::new(&user.system_ip);
-                        let (success, message) = ssh_client.modify_time_left(&user.username, operation, *adjustment).await;
+                        let (success, _message) = ssh_client.modify_time_left(&user.username, operation, *adjustment).await;
                         
                         if success {
                             // Clear pending adjustment
@@ -182,7 +177,7 @@ impl BackgroundScheduler {
                     if let Some(hours) = schedule.sunday_hours { schedule_dict.insert("sunday".to_string(), hours); }
                     
                     let ssh_client = SSHClient::new(&schedule.system_ip);
-                    let (success, message) = ssh_client.set_weekly_time_limits(&schedule.username, &schedule_dict).await;
+                    let (success, _message) = ssh_client.set_weekly_time_limits(&schedule.username, &schedule_dict).await;
                     
                     if success {
                         // Mark as synced

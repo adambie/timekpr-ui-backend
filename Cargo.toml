@@ -59,3 +59,9 @@ utoipa-swagger-ui = { version = "6.0", features = ["actix-web"] }
 
 # JWT authentication
 jsonwebtoken = "9.3"
+
+# Async traits
+async-trait = "0.1"
+
+# Directory utilities (replacement for deprecated std::env::home_dir)
+dirs = "5.0"
