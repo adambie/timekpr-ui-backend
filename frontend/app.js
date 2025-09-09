@@ -799,7 +799,7 @@ async function submitSchedule() {
     statusEl.innerHTML = '<div class="spinner"></div> Saving schedule...';
     statusEl.className = 'text-info';
     
-    const result = await apiCall('/schedule/update', 'POST', scheduleData);
+    const result = await apiCall('/api/schedule/update', 'POST', scheduleData);
     
     if (result && result.success) {
         statusEl.innerHTML = '✓ Schedule saved successfully';

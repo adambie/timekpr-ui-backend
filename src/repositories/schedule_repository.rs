@@ -53,7 +53,7 @@ impl ScheduleRepository for SqliteScheduleRepository {
         let row = sqlx::query!(
             "SELECT user_id, monday_hours, tuesday_hours, wednesday_hours, thursday_hours,
                     friday_hours, saturday_hours, sunday_hours, is_synced, last_synced, last_modified
-             FROM user_weekly_schedule WHERE user_id = ?",
+             FROM user_weekly_schedule WHERE user_id = ? ORDER BY last_modified DESC LIMIT 1",
             user_id
         )
         .fetch_optional(&self.pool)

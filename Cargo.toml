@@ -65,3 +65,8 @@ async-trait = "0.1"
 
 # Directory utilities (replacement for deprecated std::env::home_dir)
 dirs = "5.0"
+
+[dev-dependencies]
+# Testing
+actix-rt = "2.10"
+tempfile = "3.10"

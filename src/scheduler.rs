@@ -181,13 +181,22 @@ impl BackgroundScheduler {
                     
                     if success {
                         // Mark as synced
-                        let _result = sqlx::query(
+                        match sqlx::query(
                             "UPDATE user_weekly_schedule SET is_synced = 1, last_synced = ? WHERE user_id = ?"
                         )
                         .bind(Utc::now())
                         .bind(schedule.id)
                         .execute(pool)
-                        .await;
+                        .await {
+                            Ok(result) => {
+                                if result.rows_affected() == 0 {
+                                    eprintln!("Warning: No schedule found to mark as synced for user_id {}", schedule.id);
+                                }
+                            }
+                            Err(e) => {
+                                eprintln!("Failed to mark schedule as synced for user_id {}: {}", schedule.id, e);
+                            }
+                        }
                     }
                     
                     // Small delay between syncs

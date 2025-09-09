@@ -1,5 +1,5 @@
 use crate::models::{TimeModification, ServiceError, ManagedUser};
-use crate::repositories::UserRepository;
+use crate::repositories::{UserRepository, UsageRepository};
 use crate::ssh::SSHClient;
 use chrono::Utc;
 use serde_json;
@@ -7,11 +7,12 @@ use std::sync::Arc;
 
 pub struct TimeService {
     user_repository: Arc<dyn UserRepository>,
+    usage_repository: Arc<dyn UsageRepository>,
 }
 
 impl TimeService {
-    pub fn new(user_repository: Arc<dyn UserRepository>) -> Self {
-        Self { user_repository }
+    pub fn new(user_repository: Arc<dyn UserRepository>, usage_repository: Arc<dyn UsageRepository>) -> Self {
+        Self { user_repository, usage_repository }
     }
 
     pub async fn modify_time(&self, modification: TimeModification) -> Result<TimeModificationResult, ServiceError> {
@@ -72,16 +73,14 @@ impl TimeService {
         let user = self.user_repository.find_by_id(user_id).await?
             .ok_or_else(|| ServiceError::NotFound("User not found".to_string()))?;
 
-        // TODO: This should be moved to a usage repository
-        // For now, keeping the existing logic but will refactor later
+        // Get usage data for the last 7 days from repository
         let mut usage_data = Vec::new();
         
         for i in 0..7 {
             let date = Utc::now().date_naive() - chrono::Duration::days(6 - i);
             
-            // TODO: Replace direct SQL with repository call
-            // let time_spent = self.usage_repository.get_time_spent(user_id, date).await?;
-            let time_spent = 0; // Simplified for now
+            let time_spent = self.usage_repository.get_time_spent(user_id, date).await?
+                .unwrap_or(0);
             
             usage_data.push(serde_json::json!({
                 "date": date.to_string(),
