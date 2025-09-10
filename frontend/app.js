@@ -133,11 +133,24 @@ async function showDashboard() {
     const content = document.getElementById('dashboard-content');
     
     if (result && result.success) {
-        content.innerHTML = renderDashboard(result.users, sshStatus);
+        // Load schedule sync status for each user (similar to weekly schedule page)
+        const usersWithSyncStatus = await Promise.all(
+            result.users.map(async (user) => {
+                const scheduleResult = await apiCall(`/schedule-sync-status/${user.id}`);
+                return {
+                    ...user,
+                    isScheduleSynced: scheduleResult && scheduleResult.success ? scheduleResult.is_synced : true,
+                    lastScheduleSync: scheduleResult && scheduleResult.success ? scheduleResult.last_synced : null,
+                    lastScheduleModified: scheduleResult && scheduleResult.success ? scheduleResult.last_modified : null
+                };
+            })
+        );
+        
+        content.innerHTML = renderDashboard(usersWithSyncStatus, sshStatus);
         
         // Initialize charts for each user
-        if (result.users && result.users.length > 0) {
-            result.users.forEach(user => {
+        if (usersWithSyncStatus && usersWithSyncStatus.length > 0) {
+            usersWithSyncStatus.forEach(user => {
                 setTimeout(async () => await initializeChart(user), 100);
             });
         }
@@ -314,6 +327,23 @@ function renderDashboard(users, sshStatus = null) {
                 <div class="user-info">
                     <h2 class="user-name">${user.username}</h2>
                     <p class="user-location">${user.system_ip}</p>
+                </div>
+                <div class="sync-status">
+                    ${user.pending_schedule || !user.isScheduleSynced ? `
+                        <div class="badge badge-warning">
+                            <svg width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
+                            </svg>
+                            Schedule Not Synced
+                        </div>
+                    ` : `
+                        <div class="badge badge-success">
+                            <svg width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.061L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
+                            </svg>
+                            Schedule Synced
+                        </div>
+                    `}
                 </div>
             </div>
             <div class="user-card-body">
@@ -905,293 +935,6 @@ function toggleTheme() {
         // Sun icon for light mode
         icon.setAttribute('d', 'M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z');
         text.textContent = 'Dark';
-    }
-}
-
-// Weekly Schedule functionality
-async function showWeeklySchedule() {
-    showPage('weekly-schedule-page');
-    
-    // Load users and their schedules
-    const usersResult = await apiCall('/dashboard');
-    if (!usersResult || !usersResult.success) {
-        showNotification('Failed to load user data', 'error');
-        return;
-    }
-    
-    const content = document.getElementById('weekly-schedule-content');
-    const users = usersResult.users;
-    
-    if (users.length === 0) {
-        content.innerHTML = `
-            <div class="empty-state" style="grid-column: 1 / -1;">
-                <svg width="48" height="48" fill="var(--text-muted)" viewBox="0 0 16 16" style="margin-bottom: var(--space-4);">
-                    <path d="M15 14s1 0 1-1-1-4-5-4-5 3-5 4 1 1 1 1h8zm-7.978-1A.261.261 0 0 1 7 12.996c.001-.264.167-1.03.76-1.72C8.312 10.629 9.282 10 11 10c1.717 0 2.687.63 3.24 1.276.593.69.758 1.457.76 1.72l-.008.002a.274.274 0 0 1-.014.002H7.022zM11 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm3-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM6.936 9.28a5.88 5.88 0 0 0-1.23-.247A7.35 7.35 0 0 0 5 9c-4 0-5 3-5 4 0 .667.333 1 1 1h4.216A2.238 2.238 0 0 1 5 13c0-1.01.377-2.042 1.09-2.904.243-.294.526-.569.846-.816zM4.92 10A5.493 5.493 0 0 0 4 13H1c0-.26.164-1.03.76-1.724.545-.636 1.492-1.256 3.16-1.275zM1.5 5.5a3 3 0 1 1 6 0 3 3 0 0 1-6 0zm3-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/>
-                </svg>
-                <h2>No Users Available</h2>
-                <p>No users have been added yet. Go to the Admin Panel to add and manage users.</p>
-                <button class="btn btn-primary btn-lg" onclick="showAdmin()">Go to Admin Panel</button>
-            </div>
-        `;
-        return;
-    }
-    
-    // Load schedule data for each user
-    const usersWithSchedules = await Promise.all(
-        users.map(async (user) => {
-            const scheduleResult = await apiCall(`/schedule-sync-status/${user.id}`);
-            return {
-                ...user,
-                schedule: scheduleResult && scheduleResult.success ? scheduleResult.schedule : null,
-                isScheduleSynced: scheduleResult && scheduleResult.success ? scheduleResult.is_synced : true,
-                lastScheduleSync: scheduleResult && scheduleResult.success ? scheduleResult.last_synced : null,
-                lastScheduleModified: scheduleResult && scheduleResult.success ? scheduleResult.last_modified : null
-            };
-        })
-    );
-    
-    // Generate schedule cards for all users
-    content.innerHTML = usersWithSchedules.map(user => {
-        const schedule = user.schedule || {
-            hours: { monday: 0, tuesday: 0, wednesday: 0, thursday: 0, friday: 0, saturday: 0, sunday: 0 },
-            intervals: { 
-                monday: { start_time: '00:00', end_time: '23:59' },
-                tuesday: { start_time: '00:00', end_time: '23:59' },
-                wednesday: { start_time: '00:00', end_time: '23:59' },
-                thursday: { start_time: '00:00', end_time: '23:59' },
-                friday: { start_time: '00:00', end_time: '23:59' },
-                saturday: { start_time: '00:00', end_time: '23:59' },
-                sunday: { start_time: '00:00', end_time: '23:59' }
-            }
-        };
-        
-        const syncBadge = user.pending_schedule || !user.isScheduleSynced ? `
-            <div class="badge badge-warning" style="margin-bottom: var(--space-3);">
-                <svg width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
-                </svg>
-                Not Synced
-            </div>
-        ` : `
-            <div class="badge badge-success" style="margin-bottom: var(--space-3);">
-                <svg width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.061L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
-                </svg>
-                Synced
-            </div>
-        `;
-        
-        return `
-            <div class="user-card">
-                <div class="user-card-header">
-                    <div class="user-info">
-                        <h2 class="user-name">${user.username}</h2>
-                        <p class="user-location">${user.system_ip}</p>
-                    </div>
-                    <div style="display: flex; flex-direction: column; gap: var(--space-2);">
-                        ${syncBadge}
-                        <button class="btn btn-sm btn-secondary" onclick="showSchedule(${user.id})">Details</button>
-                    </div>
-                </div>
-                
-                <div class="user-card-body">
-                    <form id="schedule-form-${user.id}" onsubmit="submitScheduleForm(event, ${user.id})">
-                        <div class="schedule-section">
-                            <h3 class="schedule-section-title">Weekly Time Limits & Allowed Hours</h3>
-                            <div style="margin-bottom: var(--space-4); padding: var(--space-3); background: var(--bg-secondary); border-radius: var(--radius-md); font-size: var(--font-size-sm);">
-                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: var(--space-3); text-align: center;">
-                                    ${['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => {
-                                        const dayShort = day.substring(0, 3);
-                                        const startTime = schedule.intervals?.[day]?.start_time || '00:00';
-                                        const endTime = schedule.intervals?.[day]?.end_time || '23:59';
-                                        return `
-                                            <div>
-                                                <div><strong>${dayShort.charAt(0).toUpperCase() + dayShort.slice(1)}:</strong> ${schedule.hours[day]}h</div>
-                                                <div style="font-size: var(--font-size-xs); color: var(--text-muted); margin-top: var(--space-1);">${startTime}-${endTime}</div>
-                                            </div>
-                                        `;
-                                    }).join('')}
-                                </div>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); flex-wrap: wrap;">
-                                <div style="display: flex; align-items: center; gap: var(--space-2);">
-                                    <label style="font-weight: 500; white-space: nowrap;">Quick hours (Mon-Fri):</label>
-                                    <input type="number" id="weekday-hours-${user.id}" min="0" max="24" step="0.5" placeholder="Hours" style="width: 80px; padding: var(--space-2); border: 1px solid var(--border-primary); border-radius: var(--radius-md); background: var(--bg-primary); color: var(--text-primary);">
-                                    <button type="button" class="btn btn-sm btn-secondary" onclick="setWeekdayHours(${user.id})">Apply</button>
-                                </div>
-                                <div style="display: flex; align-items: center; gap: var(--space-2);">
-                                    <label style="font-weight: 500; white-space: nowrap;">Quick time (Mon-Fri):</label>
-                                    <input type="time" id="weekday-start-time-${user.id}" value="07:00" style="padding: var(--space-2); border: 1px solid var(--border-primary); border-radius: var(--radius-md); background: var(--bg-primary); color: var(--text-primary);">
-                                    <span style="color: var(--text-tertiary);">to</span>
-                                    <input type="time" id="weekday-end-time-${user.id}" value="21:00" style="padding: var(--space-2); border: 1px solid var(--border-primary); border-radius: var(--radius-md); background: var(--bg-primary); color: var(--text-primary);">
-                                    <button type="button" class="btn btn-sm btn-secondary" onclick="setWeekdayTimes(${user.id})">Apply</button>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="schedule-grid">
-                            ${['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day, index) => {
-                                const startTime = schedule.intervals?.[day]?.start_time || '00:00';
-                                const endTime = schedule.intervals?.[day]?.end_time || '23:59';
-                                return `
-                                <div class="schedule-day">
-                                    <label for="${day}-${user.id}" class="schedule-day-label">${day.charAt(0).toUpperCase() + day.slice(1)}</label>
-                                    <div style="display: flex; flex-direction: column; gap: var(--space-2);">
-                                        <div style="display: flex; align-items: center; gap: var(--space-2);">
-                                            <input type="number" 
-                                                   id="${day}-${user.id}" 
-                                                   name="${day}" 
-                                                   min="0" 
-                                                   max="24" 
-                                                   step="0.5"
-                                                   value="${schedule.hours[day] || 0}"
-                                                   class="schedule-input form-control"
-                                                   style="width: 80px;">
-                                            <span style="font-size: var(--font-size-xs); color: var(--text-tertiary);">hours</span>
-                                        </div>
-                                        <div style="display: flex; align-items: center; gap: var(--space-1); font-size: var(--font-size-xs);">
-                                            <input type="time" 
-                                                   id="${day}-start-time-${user.id}" 
-                                                   name="${day}_start_time" 
-                                                   value="${startTime}"
-                                                   class="form-control"
-                                                   style="width: 70px; font-size: var(--font-size-xs); padding: var(--space-1);">
-                                            <span style="color: var(--text-tertiary);">to</span>
-                                            <input type="time" 
-                                                   id="${day}-end-time-${user.id}" 
-                                                   name="${day}_end_time" 
-                                                   value="${endTime}"
-                                                   class="form-control"
-                                                   style="width: 70px; font-size: var(--font-size-xs); padding: var(--space-1);">
-                                        </div>
-                                    </div>
-                                </div>
-                                `;
-                            }).join('')}
-                        </div>
-                        
-                        <div class="schedule-actions" style="display: flex; gap: var(--space-3); margin-top: var(--space-4);">
-                            <button type="submit" class="btn btn-primary">
-                                <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                    <path d="M15.854 5.146a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 0 1 .708-.708L12.5 7.793l2.646-2.647a.5.5 0 0 1 .708 0z"/>
-                                    <path d="M1 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H1zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
-                                </svg>
-                                Save Schedule
-                            </button>
-                            <button type="button" class="btn btn-secondary" onclick="resetScheduleForm(${user.id})">
-                                <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                    <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
-                                    <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
-                                </svg>
-                                Reset
-                            </button>
-                        </div>
-                        
-                        ${user.lastScheduleModified ? `
-                            <div style="margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border-primary); font-size: var(--font-size-xs); color: var(--text-muted);">
-                                <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-2);">
-                                    <span>Last Modified:</span>
-                                    <span>${user.lastScheduleModified}</span>
-                                </div>
-                                ${user.lastScheduleSync ? `
-                                    <div style="display: flex; justify-content: space-between;">
-                                        <span>Last Synced:</span>
-                                        <span>${user.lastScheduleSync}</span>
-                                    </div>
-                                ` : ''}
-                            </div>
-                        ` : ''}
-                    </form>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-// Weekly Schedule helper functions
-function setWeekdayHours(userId) {
-    const weekdayHours = document.getElementById(`weekday-hours-${userId}`).value;
-    if (!weekdayHours) {
-        showNotification('Please enter hours for weekdays', 'warning');
-        return;
-    }
-    
-    // Set Monday through Friday
-    const weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
-    weekdays.forEach(day => {
-        document.getElementById(`${day}-${userId}`).value = weekdayHours;
-    });
-}
-
-function setWeekdayTimes(userId) {
-    const startTime = document.getElementById(`weekday-start-time-${userId}`).value;
-    const endTime = document.getElementById(`weekday-end-time-${userId}`).value;
-    
-    if (!startTime || !endTime) {
-        showNotification('Please select both start and end times', 'warning');
-        return;
-    }
-    
-    if (startTime >= endTime) {
-        showNotification('Start time must be before end time', 'warning');
-        return;
-    }
-    
-    // Set Monday through Friday
-    const weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
-    weekdays.forEach(day => {
-        document.getElementById(`${day}-start-time-${userId}`).value = startTime;
-        document.getElementById(`${day}-end-time-${userId}`).value = endTime;
-    });
-}
-
-function resetScheduleForm(userId) {
-    if (confirm('Are you sure you want to reset the schedule to the last saved values?')) {
-        // Reload the weekly schedule page to restore original values
-        showWeeklySchedule();
-    }
-}
-
-async function submitScheduleForm(event, userId) {
-    event.preventDefault();
-    
-    const scheduleData = {
-        user_id: userId,
-        monday: parseFloat(document.getElementById(`monday-${userId}`).value || 0),
-        tuesday: parseFloat(document.getElementById(`tuesday-${userId}`).value || 0),
-        wednesday: parseFloat(document.getElementById(`wednesday-${userId}`).value || 0),
-        thursday: parseFloat(document.getElementById(`thursday-${userId}`).value || 0),
-        friday: parseFloat(document.getElementById(`friday-${userId}`).value || 0),
-        saturday: parseFloat(document.getElementById(`saturday-${userId}`).value || 0),
-        sunday: parseFloat(document.getElementById(`sunday-${userId}`).value || 0),
-        // Time intervals for each day
-        monday_start_time: document.getElementById(`monday-start-time-${userId}`).value,
-        monday_end_time: document.getElementById(`monday-end-time-${userId}`).value,
-        tuesday_start_time: document.getElementById(`tuesday-start-time-${userId}`).value,
-        tuesday_end_time: document.getElementById(`tuesday-end-time-${userId}`).value,
-        wednesday_start_time: document.getElementById(`wednesday-start-time-${userId}`).value,
-        wednesday_end_time: document.getElementById(`wednesday-end-time-${userId}`).value,
-        thursday_start_time: document.getElementById(`thursday-start-time-${userId}`).value,
-        thursday_end_time: document.getElementById(`thursday-end-time-${userId}`).value,
-        friday_start_time: document.getElementById(`friday-start-time-${userId}`).value,
-        friday_end_time: document.getElementById(`friday-end-time-${userId}`).value,
-        saturday_start_time: document.getElementById(`saturday-start-time-${userId}`).value,
-        saturday_end_time: document.getElementById(`saturday-end-time-${userId}`).value,
-        sunday_start_time: document.getElementById(`sunday-start-time-${userId}`).value,
-        sunday_end_time: document.getElementById(`sunday-end-time-${userId}`).value
-    };
-    
-    const result = await apiCall('/schedule/update', 'POST', scheduleData);
-    
-    if (result && result.success) {
-        showNotification(`Schedule updated for user ${userId}`, 'success');
-        // Refresh the weekly schedule page to show updated data
-        setTimeout(() => {
-            showWeeklySchedule();
-        }, 1000);
-    } else {
-        const message = result ? result.message : 'Failed to save schedule';
-        showNotification(`Error: ${message}`, 'error');
     }
 }
 

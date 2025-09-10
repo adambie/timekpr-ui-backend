@@ -537,6 +537,9 @@ p {
 }
 
 .user-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   padding: var(--space-6);
   border-bottom: 1px solid var(--border-primary);
   background: var(--bg-secondary);
@@ -546,6 +549,11 @@ p {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+}
+
+.sync-status {
+  display: flex;
+  align-items: center;
 }
 
 .user-name {
