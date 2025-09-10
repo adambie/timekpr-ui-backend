@@ -12,10 +12,10 @@ use crate::services::TimeService;
     path = "/api/modify-time",
     request_body = ModifyTimeForm,
     responses(
-        (status = 200, description = "Time modified successfully"),
-        (status = 400, description = "Invalid operation"),
-        (status = 401, description = "Not authenticated"),
-        (status = 404, description = "User not found")
+        (status = 200, description = "Time modified successfully", body = ModifyTimeResponse),
+        (status = 400, description = "Invalid operation", body = ErrorResponse),
+        (status = 401, description = "Not authenticated", body = ErrorResponse),
+        (status = 404, description = "User not found", body = ErrorResponse)
     )
 )]
 pub async fn modify_time(
@@ -52,9 +52,9 @@ pub async fn modify_time(
         ("id" = i64, Path, description = "User ID")
     ),
     responses(
-        (status = 200, description = "User usage data retrieved"),
-        (status = 401, description = "Not authenticated"),
-        (status = 404, description = "User not found")
+        (status = 200, description = "User usage data retrieved", body = UsageResponse),
+        (status = 401, description = "Not authenticated", body = ErrorResponse),
+        (status = 404, description = "User not found", body = ErrorResponse)
     )
 )]
 pub async fn get_user_usage(

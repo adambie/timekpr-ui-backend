@@ -13,8 +13,8 @@ use crate::ssh::SSHClient;
     get,
     path = "/api/task-status",
     responses(
-        (status = 200, description = "Background task status retrieved"),
-        (status = 401, description = "Not authenticated")
+        (status = 200, description = "Background task status retrieved", body = TaskStatusResponse),
+        (status = 401, description = "Not authenticated", body = ErrorResponse)
     )
 )]
 pub async fn get_task_status(
@@ -51,8 +51,8 @@ pub async fn get_task_status(
     get,
     path = "/api/ssh-status",
     responses(
-        (status = 200, description = "SSH status retrieved"),
-        (status = 401, description = "Not authenticated")
+        (status = 200, description = "SSH status retrieved", body = SshStatusResponse),
+        (status = 401, description = "Not authenticated", body = ErrorResponse)
     )
 )]
 pub async fn get_ssh_status(

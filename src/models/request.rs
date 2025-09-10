@@ -11,6 +11,28 @@ pub struct ScheduleUpdateForm {
     pub friday: f64,
     pub saturday: f64,
     pub sunday: f64,
+    
+    // Time intervals for each day (format: "HH:MM")
+    pub monday_start_time: Option<String>,
+    pub monday_end_time: Option<String>,
+    
+    pub tuesday_start_time: Option<String>,
+    pub tuesday_end_time: Option<String>,
+    
+    pub wednesday_start_time: Option<String>,
+    pub wednesday_end_time: Option<String>,
+    
+    pub thursday_start_time: Option<String>,
+    pub thursday_end_time: Option<String>,
+    
+    pub friday_start_time: Option<String>,
+    pub friday_end_time: Option<String>,
+    
+    pub saturday_start_time: Option<String>,
+    pub saturday_end_time: Option<String>,
+    
+    pub sunday_start_time: Option<String>,
+    pub sunday_end_time: Option<String>,
 }
 
 #[derive(Deserialize, ToSchema)]

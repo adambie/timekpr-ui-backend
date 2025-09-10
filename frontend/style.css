@@ -954,3 +954,103 @@ p {
     flex-direction: column;
   }
 }
+
+/* ==========================================
+   SCHEDULE MANAGEMENT STYLES
+   ========================================== */
+
+.schedule-section {
+  margin-bottom: var(--space-6);
+}
+
+.schedule-section-title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-primary);
+  padding-bottom: var(--space-2);
+}
+
+.schedule-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.schedule-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  transition: border-color var(--transition-fast);
+}
+
+.schedule-day:hover {
+  border-color: var(--border-focus);
+}
+
+.schedule-day-label {
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  text-transform: capitalize;
+}
+
+.schedule-input {
+  width: 80px;
+  text-align: center;
+  padding: var(--space-2);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.schedule-input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgb(59 130 246 / 0.1);
+}
+
+.schedule-actions {
+  display: flex;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-primary);
+}
+
+/* Weekend day styling */
+.schedule-grid .schedule-day:nth-child(6),
+.schedule-grid .schedule-day:nth-child(7) {
+  background: var(--warning-bg);
+}
+
+.schedule-grid .schedule-day:nth-child(6) .schedule-day-label,
+.schedule-grid .schedule-day:nth-child(7) .schedule-day-label {
+  color: var(--warning);
+}
+
+/* Schedule responsiveness */
+@media (max-width: 768px) {
+  .schedule-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--space-3);
+  }
+  
+  .schedule-actions {
+    flex-direction: column;
+  }
+  
+  .schedule-section-title {
+    font-size: var(--font-size-base);
+  }
+}

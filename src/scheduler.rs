@@ -70,24 +70,35 @@ impl BackgroundScheduler {
         match users {
             Ok(users) => {
                 for user in users {
-                    // Validate user and update their data
+                    // Try to get user data but don't change validation status
                     let ssh_client = SSHClient::new(&user.system_ip);
-                    let (is_valid, _message, config) = ssh_client.validate_user(&user.username).await;
+                    let (is_reachable, _message, config) = ssh_client.validate_user(&user.username).await;
                     
-                    let config_json = config.as_ref().map(|c| c.to_string());
-                    
-                    let _result = sqlx::query(
-                        "UPDATE managed_users SET last_checked = ?, is_valid = ?, last_config = ? WHERE id = ?"
-                    )
-                    .bind(Utc::now())
-                    .bind(is_valid)
-                    .bind(&config_json)
-                    .bind(user.id)
-                    .execute(pool)
-                    .await;
+                    if is_reachable {
+                        // Only update data if connection was successful - don't change is_valid status
+                        let config_json = config.as_ref().map(|c| c.to_string());
+                        
+                        let _result = sqlx::query(
+                            "UPDATE managed_users SET last_checked = ?, last_config = ? WHERE id = ?"
+                        )
+                        .bind(Utc::now())
+                        .bind(&config_json)
+                        .bind(user.id)
+                        .execute(pool)
+                        .await;
+                    } else {
+                        // Just update last_checked timestamp to show we tried, but don't invalidate user
+                        let _result = sqlx::query(
+                            "UPDATE managed_users SET last_checked = ? WHERE id = ?"
+                        )
+                        .bind(Utc::now())
+                        .bind(user.id)
+                        .execute(pool)
+                        .await;
+                    }
 
                     // Store today's usage data if available
-                    if is_valid && config.is_some() {
+                    if is_reachable && config.is_some() {
                         if let Some(time_spent) = config.as_ref().unwrap().get("TIME_SPENT_DAY").and_then(|v| v.as_i64()) {
                             let today = Utc::now().date_naive();
                             let _usage_result = sqlx::query(
@@ -151,11 +162,18 @@ impl BackgroundScheduler {
     }
 
     async fn sync_pending_schedules(pool: &SqlitePool) {
-        // Get users with unsynced schedules
+        // Get users with unsynced schedules (including time intervals)
         let users_with_schedules = sqlx::query!(
             "SELECT u.id, u.username, u.system_ip, u.is_valid,
                     s.monday_hours, s.tuesday_hours, s.wednesday_hours, s.thursday_hours, 
-                    s.friday_hours, s.saturday_hours, s.sunday_hours
+                    s.friday_hours, s.saturday_hours, s.sunday_hours,
+                    s.monday_start_time, s.monday_end_time,
+                    s.tuesday_start_time, s.tuesday_end_time,
+                    s.wednesday_start_time, s.wednesday_end_time,
+                    s.thursday_start_time, s.thursday_end_time,
+                    s.friday_start_time, s.friday_end_time,
+                    s.saturday_start_time, s.saturday_end_time,
+                    s.sunday_start_time, s.sunday_end_time
              FROM managed_users u 
              JOIN user_weekly_schedule s ON u.id = s.user_id 
              WHERE u.is_valid = 1 AND s.is_synced = 0"
@@ -166,7 +184,9 @@ impl BackgroundScheduler {
         match users_with_schedules {
             Ok(schedules) => {
                 for schedule in schedules {
-                    // Create schedule dict with non-null values only
+                    let ssh_client = SSHClient::new(&schedule.system_ip);
+                    
+                    // Create time limits dict with non-null values only
                     let mut schedule_dict = std::collections::HashMap::new();
                     if let Some(hours) = schedule.monday_hours { schedule_dict.insert("monday".to_string(), hours); }
                     if let Some(hours) = schedule.tuesday_hours { schedule_dict.insert("tuesday".to_string(), hours); }
@@ -176,10 +196,41 @@ impl BackgroundScheduler {
                     if let Some(hours) = schedule.saturday_hours { schedule_dict.insert("saturday".to_string(), hours); }
                     if let Some(hours) = schedule.sunday_hours { schedule_dict.insert("sunday".to_string(), hours); }
                     
-                    let ssh_client = SSHClient::new(&schedule.system_ip);
-                    let (success, _message) = ssh_client.set_weekly_time_limits(&schedule.username, &schedule_dict).await;
+                    // Create time intervals dict
+                    let mut intervals_dict = std::collections::HashMap::new();
+                    if let (Some(start), Some(end)) = (&schedule.monday_start_time, &schedule.monday_end_time) {
+                        intervals_dict.insert("monday".to_string(), (start.clone(), end.clone()));
+                    }
+                    if let (Some(start), Some(end)) = (&schedule.tuesday_start_time, &schedule.tuesday_end_time) {
+                        intervals_dict.insert("tuesday".to_string(), (start.clone(), end.clone()));
+                    }
+                    if let (Some(start), Some(end)) = (&schedule.wednesday_start_time, &schedule.wednesday_end_time) {
+                        intervals_dict.insert("wednesday".to_string(), (start.clone(), end.clone()));
+                    }
+                    if let (Some(start), Some(end)) = (&schedule.thursday_start_time, &schedule.thursday_end_time) {
+                        intervals_dict.insert("thursday".to_string(), (start.clone(), end.clone()));
+                    }
+                    if let (Some(start), Some(end)) = (&schedule.friday_start_time, &schedule.friday_end_time) {
+                        intervals_dict.insert("friday".to_string(), (start.clone(), end.clone()));
+                    }
+                    if let (Some(start), Some(end)) = (&schedule.saturday_start_time, &schedule.saturday_end_time) {
+                        intervals_dict.insert("saturday".to_string(), (start.clone(), end.clone()));
+                    }
+                    if let (Some(start), Some(end)) = (&schedule.sunday_start_time, &schedule.sunday_end_time) {
+                        intervals_dict.insert("sunday".to_string(), (start.clone(), end.clone()));
+                    }
+                    
+                    // Set time limits first
+                    let (limits_success, limits_message) = ssh_client.set_weekly_time_limits(&schedule.username, &schedule_dict).await;
+                    
+                    // Set allowed hours/intervals
+                    let (hours_success, hours_message) = ssh_client.set_weekly_allowed_hours(&schedule.username, &intervals_dict).await;
+                    
+                    // Consider success if both operations succeed
+                    let success = limits_success && hours_success;
                     
                     if success {
+                        println!("Schedule sync successful for {}: {}, {}", schedule.username, limits_message, hours_message);
                         // Mark as synced
                         match sqlx::query(
                             "UPDATE user_weekly_schedule SET is_synced = 1, last_synced = ? WHERE user_id = ?"
@@ -197,6 +248,16 @@ impl BackgroundScheduler {
                                 eprintln!("Failed to mark schedule as synced for user_id {}: {}", schedule.id, e);
                             }
                         }
+                    } else {
+                        // Log what failed
+                        let mut error_parts = Vec::new();
+                        if !limits_success {
+                            error_parts.push(format!("Time limits: {}", limits_message));
+                        }
+                        if !hours_success {
+                            error_parts.push(format!("Allowed hours: {}", hours_message));
+                        }
+                        println!("Schedule sync failed for {}: {}", schedule.username, error_parts.join(", "));
                     }
                     
                     // Small delay between syncs

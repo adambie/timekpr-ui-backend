@@ -73,20 +73,15 @@ impl TimeService {
         let user = self.user_repository.find_by_id(user_id).await?
             .ok_or_else(|| ServiceError::NotFound("User not found".to_string()))?;
 
-        // Get usage data for the last 7 days from repository
-        let mut usage_data = Vec::new();
+        // Get usage data for the last 7 days efficiently in one query
+        let usage_pairs = self.usage_repository.get_usage_data(user_id, 7).await?;
         
-        for i in 0..7 {
-            let date = Utc::now().date_naive() - chrono::Duration::days(6 - i);
-            
-            let time_spent = self.usage_repository.get_time_spent(user_id, date).await?
-                .unwrap_or(0);
-            
-            usage_data.push(serde_json::json!({
+        let usage_data = usage_pairs.into_iter()
+            .map(|(date, time_spent)| serde_json::json!({
                 "date": date.to_string(),
                 "hours": (time_spent as f64) / 3600.0
-            }));
-        }
+            }))
+            .collect();
 
         Ok(UsageData {
             username: user.username,

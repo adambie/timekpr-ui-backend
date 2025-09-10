@@ -28,8 +28,8 @@ async fn main() -> anyhow::Result<()> {
     let database_url = "sqlite:instance/timekpr.db";
     let pool = SqlitePool::connect(database_url).await?;
     
-    // Run migrations
-    sqlx::migrate!("./migrations").run(&pool).await?;
+    // Run migrations (disabled - already applied manually)
+    // sqlx::migrate!("./migrations").run(&pool).await?;
     
     // Initialize admin password
     let admin_hash = sqlx::query_scalar::<_, Option<String>>("SELECT value FROM settings WHERE key = 'admin_password_hash'")

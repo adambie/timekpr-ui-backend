@@ -5,6 +5,7 @@ use sqlx::SqlitePool;
 
 #[async_trait]
 pub trait UsageRepository: Send + Sync {
+    #[allow(dead_code)]
     async fn get_time_spent(&self, user_id: i64, date: NaiveDate) -> Result<Option<i64>, ServiceError>;
     async fn get_usage_data(&self, user_id: i64, days: i32) -> Result<Vec<(NaiveDate, i64)>, ServiceError>;
 }

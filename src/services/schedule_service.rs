@@ -1,4 +1,4 @@
-use crate::models::{Schedule, ServiceError, WeeklyHours};
+use crate::models::{Schedule, ServiceError, WeeklyHours, WeeklyTimeIntervals, ScheduleWithIntervals, ScheduleSyncStatus};
 use crate::repositories::ScheduleRepository;
 use std::sync::Arc;
 
@@ -12,7 +12,7 @@ impl ScheduleService {
     }
 
     pub async fn update_schedule(&self, user_id: i64, hours: WeeklyHours) -> Result<(), ServiceError> {
-        // Business logic: Create and validate schedule
+        // Business logic: Create and validate schedule (backward compatibility)
         let schedule = Schedule::new(user_id, hours)
             .map_err(|e| ServiceError::ValidationError(e))?;
 
@@ -20,6 +20,18 @@ impl ScheduleService {
         self.repository.save(&schedule).await?;
 
         println!("Schedule updated for user {}: is_synced={}", user_id, schedule.is_synced);
+        Ok(())
+    }
+
+    pub async fn update_schedule_with_intervals(&self, user_id: i64, hours: WeeklyHours, intervals: WeeklyTimeIntervals) -> Result<(), ServiceError> {
+        // Business logic: Create and validate schedule with intervals
+        let schedule = Schedule::new_with_intervals(user_id, hours, intervals)
+            .map_err(|e| ServiceError::ValidationError(e))?;
+
+        // Persistence: Save through repository
+        self.repository.save(&schedule).await?;
+
+        println!("Schedule with intervals updated for user {}: is_synced={}", user_id, schedule.is_synced);
         Ok(())
     }
 
@@ -32,7 +44,10 @@ impl ScheduleService {
         match self.repository.find_by_user_id(user_id).await? {
             Some(schedule) => Ok(ScheduleSyncStatus {
                 is_synced: schedule.is_synced,
-                schedule: Some(schedule.hours),
+                schedule: Some(ScheduleWithIntervals {
+                    hours: schedule.hours,
+                    intervals: schedule.intervals,
+                }),
                 last_synced: schedule.last_synced.map(|dt| dt.format("%Y-%m-%d %H:%M").to_string()),
                 last_modified: Some(schedule.last_modified.format("%Y-%m-%d %H:%M").to_string()),
             }),
@@ -56,10 +71,3 @@ impl ScheduleService {
     }
 }
 
-#[derive(serde::Serialize)]
-pub struct ScheduleSyncStatus {
-    pub is_synced: bool,
-    pub schedule: Option<WeeklyHours>,
-    pub last_synced: Option<String>,
-    pub last_modified: Option<String>,
-}

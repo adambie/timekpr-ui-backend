@@ -12,10 +12,10 @@ use crate::services::UserService;
     path = "/api/users/add",
     request_body = AddUserForm,
     responses(
-        (status = 200, description = "User added successfully"),
-        (status = 400, description = "Invalid input"),
-        (status = 401, description = "Not authenticated"),
-        (status = 409, description = "User already exists")
+        (status = 200, description = "User added successfully", body = ApiResponse),
+        (status = 400, description = "Invalid input", body = ErrorResponse),
+        (status = 401, description = "Not authenticated", body = ErrorResponse),
+        (status = 409, description = "User already exists", body = ErrorResponse)
     )
 )]
 pub async fn add_user_api(
@@ -51,8 +51,8 @@ pub async fn add_user_api(
         ("id" = i64, Path, description = "User ID")
     ),
     responses(
-        (status = 200, description = "User validation completed"),
-        (status = 401, description = "Not authenticated")
+        (status = 200, description = "User validation completed", body = ApiResponse),
+        (status = 401, description = "Not authenticated", body = ErrorResponse)
     )
 )]
 pub async fn validate_user(
@@ -84,9 +84,9 @@ pub async fn validate_user(
         ("id" = i64, Path, description = "User ID")
     ),
     responses(
-        (status = 200, description = "User deleted successfully"),
-        (status = 401, description = "Not authenticated"),
-        (status = 500, description = "Failed to delete user")
+        (status = 200, description = "User deleted successfully", body = ApiResponse),
+        (status = 401, description = "Not authenticated", body = ErrorResponse),
+        (status = 500, description = "Failed to delete user", body = ErrorResponse)
     )
 )]
 pub async fn delete_user(

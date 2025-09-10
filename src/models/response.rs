@@ -79,23 +79,29 @@ pub struct UsageResponse {
     pub username: String,
 }
 
-// Schedule management responses
+// Schedule management responses - using domain models directly
+use crate::models::{WeeklyHours, WeeklyTimeIntervals};
+
 #[derive(Serialize, ToSchema)]
-pub struct ScheduleData {
-    pub monday: f64,
-    pub tuesday: f64,
-    pub wednesday: f64,
-    pub thursday: f64,
-    pub friday: f64,
-    pub saturday: f64,
-    pub sunday: f64,
+pub struct ScheduleWithIntervals {
+    pub hours: WeeklyHours,
+    pub intervals: WeeklyTimeIntervals,
 }
 
 #[derive(Serialize, ToSchema)]
 pub struct ScheduleSyncResponse {
     pub success: bool,
     pub is_synced: bool,
-    pub schedule: Option<ScheduleData>,
+    pub schedule: Option<ScheduleWithIntervals>,
+    pub last_synced: Option<String>,
+    pub last_modified: Option<String>,
+}
+
+// Service status type (used by service layer)
+#[derive(Serialize)]
+pub struct ScheduleSyncStatus {
+    pub is_synced: bool,
+    pub schedule: Option<ScheduleWithIntervals>,
     pub last_synced: Option<String>,
     pub last_modified: Option<String>,
 }

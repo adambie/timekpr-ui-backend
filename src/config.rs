@@ -46,7 +46,10 @@ use crate::models::*;
             UsageResponse,
             TaskStatusData,
             TaskStatusResponse,
-            ScheduleData,
+            ScheduleWithIntervals,
+            WeeklyHours,
+            WeeklyTimeIntervals,
+            TimeInterval,
             ScheduleSyncResponse,
             SshStatusResponse,
             ErrorResponse
