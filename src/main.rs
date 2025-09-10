@@ -91,7 +91,7 @@ async fn main() -> anyhow::Result<()> {
                     .supports_credentials()
             )
             .wrap(Logger::default())
-            // Swagger UI for API documentation
+            // Swagger UI for API documentation  
             .service(
                 utoipa_swagger_ui::SwaggerUi::new("/swagger-ui/{_:.*}")
                     .url("/api-docs/openapi.json", openapi_spec.clone())
