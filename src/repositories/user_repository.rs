@@ -10,7 +10,12 @@ pub trait UserRepository: Send + Sync {
     async fn find_all(&self) -> Result<Vec<ManagedUser>, ServiceError>;
     async fn save(&self, user: &ManagedUser) -> Result<(), ServiceError>;
     async fn delete(&self, id: i64) -> Result<(), ServiceError>;
-    async fn update_pending_time_adjustment(&self, user_id: i64, operation: &str, seconds: i64) -> Result<(), ServiceError>;
+    async fn update_pending_time_adjustment(
+        &self,
+        user_id: i64,
+        operation: &str,
+        seconds: i64,
+    ) -> Result<(), ServiceError>;
     #[allow(dead_code)]
     async fn clear_pending_time_adjustment(&self, user_id: i64) -> Result<(), ServiceError>;
 }
@@ -34,7 +39,7 @@ impl UserRepository for SqliteUserRepository {
         )
         .fetch_optional(&self.pool)
         .await?;
-        
+
         if let Some(row) = row {
             Ok(Some(ManagedUser {
                 id: row.id,
@@ -58,41 +63,47 @@ impl UserRepository for SqliteUserRepository {
         )
         .fetch_all(&self.pool)
         .await?;
-        
-        let users = rows.into_iter().map(|row| ManagedUser {
-            id: row.id,
-            username: row.username,
-            system_ip: row.system_ip,
-            is_valid: row.is_valid.unwrap_or(false),
-            date_added: row.date_added.map(|dt| dt.and_utc()),
-            last_checked: row.last_checked.map(|dt| dt.and_utc()),
-            last_config: row.last_config,
-            pending_time_adjustment: row.pending_time_adjustment,
-            pending_time_operation: row.pending_time_operation,
-        }).collect();
-        
+
+        let users = rows
+            .into_iter()
+            .map(|row| ManagedUser {
+                id: row.id,
+                username: row.username,
+                system_ip: row.system_ip,
+                is_valid: row.is_valid.unwrap_or(false),
+                date_added: row.date_added.map(|dt| dt.and_utc()),
+                last_checked: row.last_checked.map(|dt| dt.and_utc()),
+                last_config: row.last_config,
+                pending_time_adjustment: row.pending_time_adjustment,
+                pending_time_operation: row.pending_time_operation,
+            })
+            .collect();
+
         Ok(users)
     }
 
-        async fn find_all_pending(&self) -> Result<Vec<ManagedUser>, ServiceError> {
+    async fn find_all_pending(&self) -> Result<Vec<ManagedUser>, ServiceError> {
         let rows = sqlx::query!(
             "SELECT id, username, system_ip, is_valid, date_added, last_checked, last_config, pending_time_adjustment, pending_time_operation FROM managed_users WHERE pending_time_adjustment IS NOT NULL AND pending_time_operation IS NOT NULL"
         )
         .fetch_all(&self.pool)
         .await?;
-        
-        let users = rows.into_iter().map(|row| ManagedUser {
-            id: row.id,
-            username: row.username,
-            system_ip: row.system_ip,
-            is_valid: row.is_valid.unwrap_or(false),
-            date_added: row.date_added.map(|dt| dt.and_utc()),
-            last_checked: row.last_checked.map(|dt| dt.and_utc()),
-            last_config: row.last_config,
-            pending_time_adjustment: row.pending_time_adjustment,
-            pending_time_operation: row.pending_time_operation,
-        }).collect();
-        
+
+        let users = rows
+            .into_iter()
+            .map(|row| ManagedUser {
+                id: row.id,
+                username: row.username,
+                system_ip: row.system_ip,
+                is_valid: row.is_valid.unwrap_or(false),
+                date_added: row.date_added.map(|dt| dt.and_utc()),
+                last_checked: row.last_checked.map(|dt| dt.and_utc()),
+                last_config: row.last_config,
+                pending_time_adjustment: row.pending_time_adjustment,
+                pending_time_operation: row.pending_time_operation,
+            })
+            .collect();
+
         Ok(users)
     }
 
@@ -102,19 +113,22 @@ impl UserRepository for SqliteUserRepository {
         )
         .fetch_all(&self.pool)
         .await?;
-        
-        let users = rows.into_iter().map(|row| ManagedUser {
-            id: row.id,
-            username: row.username,
-            system_ip: row.system_ip,
-            is_valid: row.is_valid.unwrap_or(false),
-            date_added: row.date_added.map(|dt| dt.and_utc()),
-            last_checked: row.last_checked.map(|dt| dt.and_utc()),
-            last_config: row.last_config,
-            pending_time_adjustment: row.pending_time_adjustment,
-            pending_time_operation: row.pending_time_operation,
-        }).collect();
-        
+
+        let users = rows
+            .into_iter()
+            .map(|row| ManagedUser {
+                id: row.id,
+                username: row.username,
+                system_ip: row.system_ip,
+                is_valid: row.is_valid.unwrap_or(false),
+                date_added: row.date_added.map(|dt| dt.and_utc()),
+                last_checked: row.last_checked.map(|dt| dt.and_utc()),
+                last_config: row.last_config,
+                pending_time_adjustment: row.pending_time_adjustment,
+                pending_time_operation: row.pending_time_operation,
+            })
+            .collect();
+
         Ok(users)
     }
 
@@ -154,7 +168,7 @@ impl UserRepository for SqliteUserRepository {
             .execute(&self.pool)
             .await?;
         }
-        
+
         Ok(())
     }
 
@@ -162,11 +176,16 @@ impl UserRepository for SqliteUserRepository {
         sqlx::query!("DELETE FROM managed_users WHERE id = ?", id)
             .execute(&self.pool)
             .await?;
-        
+
         Ok(())
     }
 
-    async fn update_pending_time_adjustment(&self, user_id: i64, operation: &str, seconds: i64) -> Result<(), ServiceError> {
+    async fn update_pending_time_adjustment(
+        &self,
+        user_id: i64,
+        operation: &str,
+        seconds: i64,
+    ) -> Result<(), ServiceError> {
         sqlx::query!(
             "UPDATE managed_users SET pending_time_adjustment = ?, pending_time_operation = ? WHERE id = ?",
             seconds,
@@ -175,7 +194,7 @@ impl UserRepository for SqliteUserRepository {
         )
         .execute(&self.pool)
         .await?;
-        
+
         Ok(())
     }
 
@@ -186,7 +205,7 @@ impl UserRepository for SqliteUserRepository {
         )
         .execute(&self.pool)
         .await?;
-        
+
         Ok(())
     }
 }

@@ -1,4 +1,4 @@
-use actix_web::{test, http::StatusCode};
+use actix_web::{http::StatusCode, test};
 use serde_json::json;
 
 mod common;
@@ -8,7 +8,7 @@ use common::TestApp;
 async fn test_modify_time_add_success() {
     let test_app = TestApp::new().await;
     let app = test::init_service(test_app.create_app()).await;
-    
+
     let token = test_app.login_and_get_token().await;
     let user_id = test_app.add_test_user(&token).await;
 
@@ -35,7 +35,7 @@ async fn test_modify_time_add_success() {
 async fn test_modify_time_subtract_success() {
     let test_app = TestApp::new().await;
     let app = test::init_service(test_app.create_app()).await;
-    
+
     let token = test_app.login_and_get_token().await;
     let user_id = test_app.add_test_user(&token).await;
 
@@ -60,7 +60,7 @@ async fn test_modify_time_subtract_success() {
 async fn test_modify_time_invalid_operation() {
     let test_app = TestApp::new().await;
     let app = test::init_service(test_app.create_app()).await;
-    
+
     let token = test_app.login_and_get_token().await;
     let user_id = test_app.add_test_user(&token).await;
 
@@ -79,14 +79,17 @@ async fn test_modify_time_invalid_operation() {
 
     let body: serde_json::Value = test::read_body_json(resp).await;
     assert_eq!(body["success"], false);
-    assert!(body["message"].as_str().unwrap().contains("must be '+' or '-'"));
+    assert!(body["message"]
+        .as_str()
+        .unwrap()
+        .contains("must be '+' or '-'"));
 }
 
 #[actix_web::test]
 async fn test_modify_time_zero_seconds() {
     let test_app = TestApp::new().await;
     let app = test::init_service(test_app.create_app()).await;
-    
+
     let token = test_app.login_and_get_token().await;
     let user_id = test_app.add_test_user(&token).await;
 
@@ -105,14 +108,17 @@ async fn test_modify_time_zero_seconds() {
 
     let body: serde_json::Value = test::read_body_json(resp).await;
     assert_eq!(body["success"], false);
-    assert!(body["message"].as_str().unwrap().contains("must be positive"));
+    assert!(body["message"]
+        .as_str()
+        .unwrap()
+        .contains("must be positive"));
 }
 
 #[actix_web::test]
 async fn test_modify_time_negative_seconds() {
     let test_app = TestApp::new().await;
     let app = test::init_service(test_app.create_app()).await;
-    
+
     let token = test_app.login_and_get_token().await;
     let user_id = test_app.add_test_user(&token).await;
 
@@ -131,14 +137,17 @@ async fn test_modify_time_negative_seconds() {
 
     let body: serde_json::Value = test::read_body_json(resp).await;
     assert_eq!(body["success"], false);
-    assert!(body["message"].as_str().unwrap().contains("must be positive"));
+    assert!(body["message"]
+        .as_str()
+        .unwrap()
+        .contains("must be positive"));
 }
 
 #[actix_web::test]
 async fn test_modify_time_nonexistent_user() {
     let test_app = TestApp::new().await;
     let app = test::init_service(test_app.create_app()).await;
-    
+
     let token = test_app.login_and_get_token().await;
 
     let req = test::TestRequest::post()
@@ -177,7 +186,7 @@ async fn test_modify_time_without_auth() {
 async fn test_modify_time_missing_fields() {
     let test_app = TestApp::new().await;
     let app = test::init_service(test_app.create_app()).await;
-    
+
     let token = test_app.login_and_get_token().await;
 
     // Missing operation

@@ -2,9 +2,9 @@ use actix_web::{web, HttpResponse, Result};
 use serde_json;
 use utoipa;
 
-use crate::models::{ModifyTimeForm, TimeModification, ServiceError};
 use crate::auth::JwtManager;
 use crate::middleware::auth::authenticate_request;
+use crate::models::{ModifyTimeForm, ServiceError, TimeModification};
 use crate::services::TimeService;
 
 #[utoipa::path(
@@ -21,12 +21,14 @@ use crate::services::TimeService;
 pub async fn modify_time(
     time_service: web::Data<TimeService>,
     form: web::Json<ModifyTimeForm>,
-    req: actix_web::HttpRequest, 
+    req: actix_web::HttpRequest,
     jwt_manager: web::Data<JwtManager>,
 ) -> Result<HttpResponse, ServiceError> {
     // Authentication
     if let Err(_) = authenticate_request(&req, &jwt_manager) {
-        return Err(ServiceError::AuthenticationError("Not authenticated".to_string()));
+        return Err(ServiceError::AuthenticationError(
+            "Not authenticated".to_string(),
+        ));
     }
 
     // Create domain object with validation
@@ -60,16 +62,18 @@ pub async fn modify_time(
 pub async fn get_user_usage(
     time_service: web::Data<TimeService>,
     path: web::Path<i64>,
-    req: actix_web::HttpRequest, 
+    req: actix_web::HttpRequest,
     jwt_manager: web::Data<JwtManager>,
 ) -> Result<HttpResponse, ServiceError> {
     // Authentication
     if let Err(_) = authenticate_request(&req, &jwt_manager) {
-        return Err(ServiceError::AuthenticationError("Not authenticated".to_string()));
+        return Err(ServiceError::AuthenticationError(
+            "Not authenticated".to_string(),
+        ));
     }
 
     let user_id = path.into_inner();
-    
+
     // Business logic delegation
     let usage_data = time_service.get_user_usage(user_id).await?;
 

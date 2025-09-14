@@ -1,4 +1,4 @@
-use actix_web::{test, http::StatusCode};
+use actix_web::{http::StatusCode, test};
 use serde_json::json;
 
 mod common;
@@ -8,7 +8,7 @@ use common::TestApp;
 async fn test_add_user_success() {
     let test_app = TestApp::new().await;
     let app = test::init_service(test_app.create_app()).await;
-    
+
     // Login to get token
     let token = test_app.login_and_get_token().await;
 
@@ -34,7 +34,7 @@ async fn test_add_user_success() {
 async fn test_add_user_missing_username() {
     let test_app = TestApp::new().await;
     let app = test::init_service(test_app.create_app()).await;
-    
+
     let token = test_app.login_and_get_token().await;
 
     let req = test::TestRequest::post()
@@ -53,7 +53,7 @@ async fn test_add_user_missing_username() {
 async fn test_add_user_invalid_ip() {
     let test_app = TestApp::new().await;
     let app = test::init_service(test_app.create_app()).await;
-    
+
     let token = test_app.login_and_get_token().await;
 
     let req = test::TestRequest::post()
@@ -71,14 +71,17 @@ async fn test_add_user_invalid_ip() {
     let body: serde_json::Value = test::read_body_json(resp).await;
     assert_eq!(body["success"], true);
     // Invalid IP will cause SSH validation to fail but user will still be created
-    assert!(body["message"].as_str().unwrap().contains("validation failed"));
+    assert!(body["message"]
+        .as_str()
+        .unwrap()
+        .contains("validation failed"));
 }
 
 #[actix_web::test]
 async fn test_add_duplicate_user() {
     let test_app = TestApp::new().await;
     let app = test::init_service(test_app.create_app()).await;
-    
+
     let token = test_app.login_and_get_token().await;
 
     // Add user first time
@@ -116,7 +119,7 @@ async fn test_add_duplicate_user() {
 async fn test_remove_user_success() {
     let test_app = TestApp::new().await;
     let app = test::init_service(test_app.create_app()).await;
-    
+
     let token = test_app.login_and_get_token().await;
     let user_id = test_app.add_test_user(&token).await;
 
@@ -137,7 +140,7 @@ async fn test_remove_user_success() {
 async fn test_remove_nonexistent_user() {
     let test_app = TestApp::new().await;
     let app = test::init_service(test_app.create_app()).await;
-    
+
     let token = test_app.login_and_get_token().await;
 
     let req = test::TestRequest::post()

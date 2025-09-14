@@ -29,24 +29,18 @@ impl fmt::Display for ServiceError {
 impl ResponseError for ServiceError {
     fn error_response(&self) -> HttpResponse {
         match self {
-            ServiceError::ValidationError(msg) => {
-                HttpResponse::BadRequest().json(json!({
-                    "success": false,
-                    "message": msg
-                }))
-            }
-            ServiceError::NotFound(msg) => {
-                HttpResponse::NotFound().json(json!({
-                    "success": false,
-                    "message": msg
-                }))
-            }
-            ServiceError::AuthenticationError(msg) => {
-                HttpResponse::Unauthorized().json(json!({
-                    "success": false,
-                    "message": msg
-                }))
-            }
+            ServiceError::ValidationError(msg) => HttpResponse::BadRequest().json(json!({
+                "success": false,
+                "message": msg
+            })),
+            ServiceError::NotFound(msg) => HttpResponse::NotFound().json(json!({
+                "success": false,
+                "message": msg
+            })),
+            ServiceError::AuthenticationError(msg) => HttpResponse::Unauthorized().json(json!({
+                "success": false,
+                "message": msg
+            })),
             ServiceError::DatabaseError(msg) => {
                 eprintln!("Database error: {}", msg);
                 HttpResponse::InternalServerError().json(json!({
@@ -54,13 +48,11 @@ impl ResponseError for ServiceError {
                     "message": "Database error occurred"
                 }))
             }
-            ServiceError::SshError(msg) => {
-                HttpResponse::Ok().json(json!({
-                    "success": true,
-                    "message": format!("Queued for later sync: {}", msg),
-                    "pending": true
-                }))
-            }
+            ServiceError::SshError(msg) => HttpResponse::Ok().json(json!({
+                "success": true,
+                "message": format!("Queued for later sync: {}", msg),
+                "pending": true
+            })),
             ServiceError::InternalError(msg) => {
                 eprintln!("Internal error: {}", msg);
                 HttpResponse::InternalServerError().json(json!({

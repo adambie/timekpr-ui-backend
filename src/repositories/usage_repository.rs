@@ -6,9 +6,22 @@ use sqlx::SqlitePool;
 #[async_trait]
 pub trait UsageRepository: Send + Sync {
     #[allow(dead_code)]
-    async fn get_time_spent(&self, user_id: i64, date: NaiveDate) -> Result<Option<i64>, ServiceError>;
-    async fn get_usage_data(&self, user_id: i64, days: i32) -> Result<Vec<(NaiveDate, i64)>, ServiceError>;
-    async fn store_daily_usage(&self, user_id: i64, date: NaiveDate, time_spent: i64) -> Result<(), ServiceError>;
+    async fn get_time_spent(
+        &self,
+        user_id: i64,
+        date: NaiveDate,
+    ) -> Result<Option<i64>, ServiceError>;
+    async fn get_usage_data(
+        &self,
+        user_id: i64,
+        days: i32,
+    ) -> Result<Vec<(NaiveDate, i64)>, ServiceError>;
+    async fn store_daily_usage(
+        &self,
+        user_id: i64,
+        date: NaiveDate,
+        time_spent: i64,
+    ) -> Result<(), ServiceError>;
 }
 
 pub struct SqliteUsageRepository {
@@ -23,23 +36,33 @@ impl SqliteUsageRepository {
 
 #[async_trait]
 impl UsageRepository for SqliteUsageRepository {
-    async fn get_time_spent(&self, user_id: i64, date: NaiveDate) -> Result<Option<i64>, ServiceError> {
+    async fn get_time_spent(
+        &self,
+        user_id: i64,
+        date: NaiveDate,
+    ) -> Result<Option<i64>, ServiceError> {
         let time_spent = sqlx::query_scalar!(
             "SELECT time_spent FROM user_time_usage WHERE user_id = ? AND date = ?",
-            user_id, date
+            user_id,
+            date
         )
         .fetch_optional(&self.pool)
         .await?;
-        
+
         Ok(time_spent.flatten())
     }
 
-    async fn get_usage_data(&self, user_id: i64, days: i32) -> Result<Vec<(NaiveDate, i64)>, ServiceError> {
+    async fn get_usage_data(
+        &self,
+        user_id: i64,
+        days: i32,
+    ) -> Result<Vec<(NaiveDate, i64)>, ServiceError> {
         let rows = sqlx::query!(
             "SELECT date, time_spent FROM user_time_usage 
              WHERE user_id = ? AND date >= date('now', '-' || ? || ' days')
              ORDER BY date ASC",
-            user_id, days
+            user_id,
+            days
         )
         .fetch_all(&self.pool)
         .await?;
@@ -52,14 +75,21 @@ impl UsageRepository for SqliteUsageRepository {
         Ok(usage_data)
     }
 
-    async fn store_daily_usage(&self, user_id: i64, date: NaiveDate, time_spent: i64) -> Result<(), ServiceError> {
+    async fn store_daily_usage(
+        &self,
+        user_id: i64,
+        date: NaiveDate,
+        time_spent: i64,
+    ) -> Result<(), ServiceError> {
         sqlx::query!(
             "INSERT OR REPLACE INTO user_time_usage (user_id, date, time_spent) VALUES (?, ?, ?)",
-            user_id, date, time_spent
+            user_id,
+            date,
+            time_spent
         )
         .execute(&self.pool)
         .await?;
-        
+
         Ok(())
     }
 }

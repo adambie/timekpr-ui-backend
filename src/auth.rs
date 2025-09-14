@@ -1,13 +1,13 @@
+use actix_web::{HttpRequest, Result as ActixResult};
+use chrono::{Duration, Utc};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation};
 use serde::{Deserialize, Serialize};
-use chrono::{Duration, Utc};
-use actix_web::{HttpRequest, Result as ActixResult};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
-    pub sub: String,  // Subject (username)
-    pub exp: usize,   // Expiration time
-    pub iat: usize,   // Issued at
+    pub sub: String, // Subject (username)
+    pub exp: usize,  // Expiration time
+    pub iat: usize,  // Issued at
 }
 
 #[derive(Clone)]
@@ -27,7 +27,7 @@ impl JwtManager {
     pub fn generate_token(&self, username: &str) -> Result<String, jsonwebtoken::errors::Error> {
         let now = Utc::now();
         let expires_in = Duration::hours(24); // 24 hour expiration
-        
+
         let claims = Claims {
             sub: username.to_string(),
             exp: (now + expires_in).timestamp() as usize,
@@ -37,18 +37,22 @@ impl JwtManager {
         encode(&Header::default(), &claims, &self.encoding_key)
     }
 
-    pub fn verify_token(&self, token: &str) -> Result<TokenData<Claims>, jsonwebtoken::errors::Error> {
+    pub fn verify_token(
+        &self,
+        token: &str,
+    ) -> Result<TokenData<Claims>, jsonwebtoken::errors::Error> {
         decode::<Claims>(token, &self.decoding_key, &Validation::default())
     }
 }
 
 pub fn extract_token_from_header(req: &HttpRequest) -> Option<String> {
-    let auth_header = req.headers()
+    let auth_header = req
+        .headers()
         .get("Authorization")?
         .to_str()
         .ok()?
         .strip_prefix("Bearer ")?;
-    
+
     // Handle case where token accidentally starts with "bearer " due to Swagger UI bug
     if auth_header.starts_with("bearer ") {
         Some(auth_header.strip_prefix("bearer ")?.to_string())

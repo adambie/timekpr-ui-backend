@@ -1,13 +1,11 @@
-// Re-export all models for easy importing
-pub mod request;
-pub mod response;
-pub mod database;
-pub mod domain;
+// Re-export all models organized by domain
+pub mod api;
 pub mod errors;
+pub mod schedule;
+pub mod user;
 
-// Re-export all structs
-pub use request::*;
-pub use response::*;
-pub use database::*;
-pub use domain::*;
+// Re-export all structs for backward compatibility
+pub use api::*;
 pub use errors::*;
+pub use schedule::*;
+pub use user::*;

@@ -1,20 +1,17 @@
-use actix_web::{web, App, test};
-use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
+use actix_web::{test, web, App};
+use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
 use std::sync::Arc;
 use tempfile::TempDir;
 use timekpr_ui_rust::{
+    auth::JwtManager,
+    handlers,
+    models::ManagedUser,
     repositories::{
-        user_repository::SqliteUserRepository,
-        schedule_repository::SqliteScheduleRepository,
+        schedule_repository::SqliteScheduleRepository, user_repository::SqliteUserRepository,
     },
     services::{
-        user_service::UserService,
-        schedule_service::ScheduleService,
-        time_service::TimeService,
+        schedule_service::ScheduleService, time_service::TimeService, user_service::UserService,
     },
-    handlers,
-    auth::JwtManager,
-    models::ManagedUser,
 };
 
 pub struct TestApp {
@@ -26,16 +23,16 @@ pub struct TestApp {
 
 impl TestApp {
     async fn init_admin_password(pool: &SqlitePool) {
-        use argon2::{Argon2, PasswordHasher};
         use argon2::password_hash::{rand_core::OsRng, SaltString};
-        
+        use argon2::{Argon2, PasswordHasher};
+
         // Hash "admin" password
         let salt = SaltString::generate(&mut OsRng);
         let argon2 = Argon2::default();
         let password_hash = argon2.hash_password(b"admin", &salt).unwrap();
-        
+
         sqlx::query(
-            "INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_password_hash', ?)"
+            "INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_password_hash', ?)",
         )
         .bind(password_hash.to_string())
         .execute(pool)
@@ -74,7 +71,9 @@ impl TestApp {
         }
     }
 
-    pub fn create_app(&self) -> actix_web::App<
+    pub fn create_app(
+        &self,
+    ) -> actix_web::App<
         impl actix_web::dev::ServiceFactory<
             actix_web::dev::ServiceRequest,
             Config = (),
@@ -100,12 +99,30 @@ impl TestApp {
             .app_data(jwt_manager)
             .app_data(web::Data::new(self.pool.clone()))
             .route("/api/login", web::post().to(handlers::auth::login_api))
-            .route("/api/dashboard", web::get().to(handlers::dashboard::dashboard_api))
-            .route("/api/users/add", web::post().to(handlers::users::add_user_api))
-            .route("/api/users/delete/{id}", web::post().to(handlers::users::delete_user))
-            .route("/api/modify-time", web::post().to(handlers::time::modify_time))
-            .route("/api/schedule/update", web::post().to(handlers::schedule::update_schedule_api))
-            .route("/api/schedule/{id}", web::get().to(handlers::schedule::get_schedule_sync_status))
+            .route(
+                "/api/dashboard",
+                web::get().to(handlers::dashboard::dashboard_api),
+            )
+            .route(
+                "/api/users/add",
+                web::post().to(handlers::users::add_user_api),
+            )
+            .route(
+                "/api/users/delete/{id}",
+                web::post().to(handlers::users::delete_user),
+            )
+            .route(
+                "/api/modify-time",
+                web::post().to(handlers::time::modify_time),
+            )
+            .route(
+                "/api/schedule/update",
+                web::post().to(handlers::schedule::update_schedule_api),
+            )
+            .route(
+                "/api/schedule/{id}",
+                web::get().to(handlers::schedule::get_schedule_sync_status),
+            )
     }
 
     pub async fn login_and_get_token(&self) -> String {
@@ -121,7 +138,7 @@ impl TestApp {
 
         let resp = test::call_service(&app, login_req).await;
         let body: serde_json::Value = test::read_body_json(resp).await;
-        
+
         body["token"].as_str().unwrap().to_string()
     }
 
@@ -138,7 +155,7 @@ impl TestApp {
             .to_request();
 
         let _resp = test::call_service(&app, add_user_req).await;
-        
+
         // Query the database directly to get the user ID since the API doesn't return it
         let user = sqlx::query_as::<_, ManagedUser>(
             "SELECT * FROM managed_users WHERE username = 'testuser' AND system_ip = '192.168.1.100'"
@@ -146,7 +163,7 @@ impl TestApp {
         .fetch_one(&self.pool)
         .await
         .expect("Failed to fetch created user");
-        
+
         user.id
     }
 }

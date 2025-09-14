@@ -1,4 +1,4 @@
-use actix_web::{test, http::StatusCode};
+use actix_web::{http::StatusCode, test};
 use serde_json::json;
 
 mod common;
@@ -8,7 +8,7 @@ use common::TestApp;
 async fn test_update_schedule_success() {
     let test_app = TestApp::new().await;
     let app = test::init_service(test_app.create_app()).await;
-    
+
     let token = test_app.login_and_get_token().await;
     let user_id = test_app.add_test_user(&token).await;
 
@@ -39,7 +39,7 @@ async fn test_update_schedule_success() {
 async fn test_update_schedule_invalid_hours() {
     let test_app = TestApp::new().await;
     let app = test::init_service(test_app.create_app()).await;
-    
+
     let token = test_app.login_and_get_token().await;
     let user_id = test_app.add_test_user(&token).await;
 
@@ -64,14 +64,17 @@ async fn test_update_schedule_invalid_hours() {
 
     let body: serde_json::Value = test::read_body_json(resp).await;
     assert_eq!(body["success"], false);
-    assert!(body["message"].as_str().unwrap().contains("between 0 and 24"));
+    assert!(body["message"]
+        .as_str()
+        .unwrap()
+        .contains("between 0 and 24"));
 }
 
 #[actix_web::test]
 async fn test_update_schedule_hours_over_limit() {
     let test_app = TestApp::new().await;
     let app = test::init_service(test_app.create_app()).await;
-    
+
     let token = test_app.login_and_get_token().await;
     let user_id = test_app.add_test_user(&token).await;
 
@@ -96,14 +99,17 @@ async fn test_update_schedule_hours_over_limit() {
 
     let body: serde_json::Value = test::read_body_json(resp).await;
     assert_eq!(body["success"], false);
-    assert!(body["message"].as_str().unwrap().contains("between 0 and 24"));
+    assert!(body["message"]
+        .as_str()
+        .unwrap()
+        .contains("between 0 and 24"));
 }
 
 #[actix_web::test]
 async fn test_update_schedule_nonexistent_user() {
     let test_app = TestApp::new().await;
     let app = test::init_service(test_app.create_app()).await;
-    
+
     let token = test_app.login_and_get_token().await;
 
     let req = test::TestRequest::post()
@@ -133,7 +139,7 @@ async fn test_update_schedule_nonexistent_user() {
 async fn test_get_schedule_success() {
     let test_app = TestApp::new().await;
     let app = test::init_service(test_app.create_app()).await;
-    
+
     let token = test_app.login_and_get_token().await;
     let user_id = test_app.add_test_user(&token).await;
 
@@ -176,7 +182,7 @@ async fn test_get_schedule_success() {
 async fn test_get_schedule_nonexistent_user() {
     let test_app = TestApp::new().await;
     let app = test::init_service(test_app.create_app()).await;
-    
+
     let token = test_app.login_and_get_token().await;
 
     let req = test::TestRequest::get()
@@ -216,9 +222,7 @@ async fn test_schedule_operations_without_auth() {
     assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
 
     // Test get schedule without token
-    let req = test::TestRequest::get()
-        .uri("/api/schedule/1")
-        .to_request();
+    let req = test::TestRequest::get().uri("/api/schedule/1").to_request();
 
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
@@ -228,7 +232,7 @@ async fn test_schedule_operations_without_auth() {
 async fn test_update_schedule_missing_day() {
     let test_app = TestApp::new().await;
     let app = test::init_service(test_app.create_app()).await;
-    
+
     let token = test_app.login_and_get_token().await;
     let user_id = test_app.add_test_user(&token).await;
 

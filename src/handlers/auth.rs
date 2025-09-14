@@ -1,11 +1,11 @@
 use actix_web::{web, HttpResponse, Result};
-use sqlx::SqlitePool;
 use serde_json;
+use sqlx::SqlitePool;
 use utoipa;
 
-use crate::models::{LoginForm, PasswordChangeForm, LoginResponse, ApiResponse, ServiceError};
 use crate::auth::JwtManager;
 use crate::middleware::auth::authenticate_request;
+use crate::models::{ApiResponse, LoginForm, LoginResponse, PasswordChangeForm, ServiceError};
 
 #[utoipa::path(
     post,
@@ -25,17 +25,20 @@ pub async fn login_api(
     if form.username == "admin" {
         // Check admin password
         let admin_hash = sqlx::query_scalar::<_, String>(
-            "SELECT value FROM settings WHERE key = 'admin_password_hash'"
+            "SELECT value FROM settings WHERE key = 'admin_password_hash'",
         )
         .fetch_optional(pool.get_ref())
         .await;
 
         match admin_hash {
             Ok(Some(hash)) => {
-                use argon2::{Argon2, PasswordVerifier, PasswordHash};
-                
+                use argon2::{Argon2, PasswordHash, PasswordVerifier};
+
                 if let Ok(parsed_hash) = PasswordHash::new(&hash) {
-                    if Argon2::default().verify_password(form.password.as_bytes(), &parsed_hash).is_ok() {
+                    if Argon2::default()
+                        .verify_password(form.password.as_bytes(), &parsed_hash)
+                        .is_ok()
+                    {
                         // Generate JWT token
                         match jwt_manager.generate_token(&form.username) {
                             Ok(token) => {
@@ -47,7 +50,9 @@ pub async fn login_api(
                                 }));
                             }
                             Err(_) => {
-                                return Err(ServiceError::InternalError("Failed to generate token".to_string()));
+                                return Err(ServiceError::InternalError(
+                                    "Failed to generate token".to_string(),
+                                ));
                             }
                         }
                     }
@@ -56,9 +61,11 @@ pub async fn login_api(
             _ => {}
         }
     }
-    
+
     // Login failed
-    Err(ServiceError::AuthenticationError("Invalid credentials".to_string()))
+    Err(ServiceError::AuthenticationError(
+        "Invalid credentials".to_string(),
+    ))
 }
 
 #[utoipa::path(
@@ -91,47 +98,62 @@ pub async fn logout_api() -> Result<HttpResponse, ServiceError> {
 pub async fn change_password_api(
     pool: web::Data<SqlitePool>,
     form: web::Json<PasswordChangeForm>,
-    req: actix_web::HttpRequest, 
+    req: actix_web::HttpRequest,
     jwt_manager: web::Data<JwtManager>,
 ) -> Result<HttpResponse, ServiceError> {
     if let Err(_) = authenticate_request(&req, &jwt_manager) {
-        return Err(ServiceError::AuthenticationError("Not authenticated".to_string()));
+        return Err(ServiceError::AuthenticationError(
+            "Not authenticated".to_string(),
+        ));
     }
 
     // Validate inputs
-    if form.current_password.is_empty() || form.new_password.is_empty() || form.confirm_password.is_empty() {
-        return Err(ServiceError::ValidationError("All fields are required".to_string()));
+    if form.current_password.is_empty()
+        || form.new_password.is_empty()
+        || form.confirm_password.is_empty()
+    {
+        return Err(ServiceError::ValidationError(
+            "All fields are required".to_string(),
+        ));
     }
 
     if form.new_password != form.confirm_password {
-        return Err(ServiceError::ValidationError("New passwords do not match".to_string()));
+        return Err(ServiceError::ValidationError(
+            "New passwords do not match".to_string(),
+        ));
     }
 
     if form.new_password.len() < 4 {
-        return Err(ServiceError::ValidationError("New password must be at least 4 characters long".to_string()));
+        return Err(ServiceError::ValidationError(
+            "New password must be at least 4 characters long".to_string(),
+        ));
     }
 
     // Check current password
     let admin_hash = sqlx::query_scalar::<_, String>(
-        "SELECT value FROM settings WHERE key = 'admin_password_hash'"
+        "SELECT value FROM settings WHERE key = 'admin_password_hash'",
     )
     .fetch_optional(pool.get_ref())
     .await;
 
     match admin_hash {
         Ok(Some(hash)) => {
-            use argon2::{Argon2, PasswordVerifier, PasswordHash};
-            
+            use argon2::{Argon2, PasswordHash, PasswordVerifier};
+
             if let Ok(parsed_hash) = PasswordHash::new(&hash) {
-                if Argon2::default().verify_password(form.current_password.as_bytes(), &parsed_hash).is_ok() {
+                if Argon2::default()
+                    .verify_password(form.current_password.as_bytes(), &parsed_hash)
+                    .is_ok()
+                {
                     // Current password is correct, update to new password
-                    use argon2::PasswordHasher;
                     use argon2::password_hash::{rand_core::OsRng, SaltString};
-                    
+                    use argon2::PasswordHasher;
+
                     let salt = SaltString::generate(&mut OsRng);
                     let argon2 = Argon2::default();
-                    let new_password_hash = argon2.hash_password(form.new_password.as_bytes(), &salt);
-                    
+                    let new_password_hash =
+                        argon2.hash_password(form.new_password.as_bytes(), &salt);
+
                     match new_password_hash {
                         Ok(hash) => {
                             let result = sqlx::query(
@@ -151,10 +173,12 @@ pub async fn change_password_api(
                                 }
                                 Err(e) => {
                                     eprintln!("Failed to update password: {}", e);
-                                    Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                                        "success": false,
-                                        "message": "Failed to update password"
-                                    })))
+                                    Ok(HttpResponse::InternalServerError().json(
+                                        serde_json::json!({
+                                            "success": false,
+                                            "message": "Failed to update password"
+                                        }),
+                                    ))
                                 }
                             }
                         }
@@ -179,11 +203,9 @@ pub async fn change_password_api(
                 })))
             }
         }
-        _ => {
-            Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "success": false,
-                "message": "System error. Please try again."
-            })))
-        }
+        _ => Ok(HttpResponse::InternalServerError().json(serde_json::json!({
+            "success": false,
+            "message": "System error. Please try again."
+        }))),
     }
 }

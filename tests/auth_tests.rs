@@ -1,4 +1,4 @@
-use actix_web::{test, http::StatusCode};
+use actix_web::{http::StatusCode, test};
 use serde_json::json;
 
 mod common;

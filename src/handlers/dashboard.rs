@@ -1,9 +1,9 @@
 use actix_web::{web, HttpResponse, Result};
 use utoipa;
 
-use crate::models::{DashboardResponse, AdminResponse, ServiceError};
 use crate::auth::JwtManager;
 use crate::middleware::auth::authenticate_request;
+use crate::models::{AdminResponse, DashboardResponse, ServiceError};
 use crate::services::UserService;
 
 #[utoipa::path(
@@ -25,7 +25,7 @@ pub async fn dashboard_api(
             "Not authenticated - valid JWT token required".to_string(),
         ));
     }
-    
+
     // Business logic delegation
     let users = user_service.get_dashboard_users().await?;
 

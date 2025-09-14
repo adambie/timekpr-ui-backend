@@ -1,4 +1,4 @@
-use crate::models::{Schedule, ServiceError, WeeklyHours, WeeklyTimeIntervals, TimeInterval};
+use crate::models::{Schedule, ServiceError, TimeInterval, WeeklyHours, WeeklyTimeIntervals};
 use async_trait::async_trait;
 use chrono::Utc;
 use sqlx::SqlitePool;
@@ -27,7 +27,7 @@ impl SqliteScheduleRepository {
 impl ScheduleRepository for SqliteScheduleRepository {
     async fn save(&self, schedule: &Schedule) -> Result<(), ServiceError> {
         let last_modified = schedule.last_modified.naive_utc();
-        
+
         // Extract interval values to avoid borrowing issues
         let mon_start = &schedule.intervals.monday.start_time;
         let mon_end = &schedule.intervals.monday.end_time;
@@ -43,7 +43,7 @@ impl ScheduleRepository for SqliteScheduleRepository {
         let sat_end = &schedule.intervals.saturday.end_time;
         let sun_start = &schedule.intervals.sunday.start_time;
         let sun_end = &schedule.intervals.sunday.end_time;
-        
+
         sqlx::query!(
             "INSERT OR REPLACE INTO user_weekly_schedule 
              (user_id, monday_hours, tuesday_hours, wednesday_hours, thursday_hours, 
@@ -64,14 +64,24 @@ impl ScheduleRepository for SqliteScheduleRepository {
             schedule.hours.sunday,
             schedule.is_synced,
             last_modified,
-            mon_start, mon_end, tue_start, tue_end,
-            wed_start, wed_end, thu_start, thu_end,
-            fri_start, fri_end, sat_start, sat_end,
-            sun_start, sun_end
+            mon_start,
+            mon_end,
+            tue_start,
+            tue_end,
+            wed_start,
+            wed_end,
+            thu_start,
+            thu_end,
+            fri_start,
+            fri_end,
+            sat_start,
+            sat_end,
+            sun_start,
+            sun_end
         )
         .execute(&self.pool)
         .await?;
-        
+
         Ok(())
     }
 
@@ -133,7 +143,10 @@ impl ScheduleRepository for SqliteScheduleRepository {
                 },
                 is_synced: row.is_synced.unwrap_or(false),
                 last_synced: row.last_synced.map(|dt| dt.and_utc()),
-                last_modified: row.last_modified.map(|dt| dt.and_utc()).unwrap_or_else(|| Utc::now()),
+                last_modified: row
+                    .last_modified
+                    .map(|dt| dt.and_utc())
+                    .unwrap_or_else(|| Utc::now()),
             };
             Ok(Some(schedule))
         } else {
@@ -166,7 +179,10 @@ impl ScheduleRepository for SqliteScheduleRepository {
                 intervals: WeeklyTimeIntervals::default(),
                 is_synced: row.is_synced.unwrap_or(false),
                 last_synced: row.last_synced.map(|dt| dt.and_utc()),
-                last_modified: row.last_modified.map(|dt| dt.and_utc()).unwrap_or_else(|| Utc::now()),
+                last_modified: row
+                    .last_modified
+                    .map(|dt| dt.and_utc())
+                    .unwrap_or_else(|| Utc::now()),
             })
             .collect();
 
@@ -182,7 +198,7 @@ impl ScheduleRepository for SqliteScheduleRepository {
         )
         .execute(&self.pool)
         .await?;
-        
+
         Ok(())
     }
 }

@@ -12,8 +12,14 @@ impl UsageService {
         Self { repository }
     }
 
-    pub async fn store_daily_usage(&self, user_id: i64, time_spent: i64) -> Result<(), ServiceError> {
+    pub async fn store_daily_usage(
+        &self,
+        user_id: i64,
+        time_spent: i64,
+    ) -> Result<(), ServiceError> {
         let today = Utc::now().date_naive();
-        self.repository.store_daily_usage(user_id, today, time_spent).await
+        self.repository
+            .store_daily_usage(user_id, today, time_spent)
+            .await
     }
 }

@@ -1,6 +1,6 @@
-use utoipa::openapi::OpenApi;
-use utoipa::openapi::security::{SecurityScheme, HttpAuthScheme, HttpBuilder};
 use std::collections::BTreeMap;
+use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
+use utoipa::openapi::OpenApi;
 
 pub fn configure_openapi(mut openapi: OpenApi) -> OpenApi {
     // Add Bearer token security scheme (HTTP Bearer type, not ApiKey)
@@ -12,19 +12,20 @@ pub fn configure_openapi(mut openapi: OpenApi) -> OpenApi {
                 .scheme(HttpAuthScheme::Bearer)
                 .bearer_format("JWT")
                 .description(Some("JWT token authorization"))
-                .build()
+                .build(),
         ),
     );
-    
+
     // Add security schemes to existing components
     if let Some(components) = openapi.components.as_mut() {
         components.security_schemes = security_schemes;
     }
-    
+
     // Add global security requirement (applies to all endpoints except those with security() override)
-    openapi.security = Some(vec![
-        utoipa::openapi::security::SecurityRequirement::new("bearer_auth", Vec::<String>::new())
-    ]);
-    
+    openapi.security = Some(vec![utoipa::openapi::security::SecurityRequirement::new(
+        "bearer_auth",
+        Vec::<String>::new(),
+    )]);
+
     openapi
 }

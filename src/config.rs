@@ -1,5 +1,5 @@
-use utoipa::OpenApi;
 use crate::models::*;
+use utoipa::OpenApi;
 
 #[derive(OpenApi)]
 #[openapi(
