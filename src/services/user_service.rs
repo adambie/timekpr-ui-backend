@@ -167,4 +167,74 @@ impl UserService {
 
         Ok(user_data)
     }
+
+    pub async fn get_valid_users(&self) -> Result<Vec<AdminUserData>, ServiceError> {
+        let users = self.repository.find_all_valid().await?;
+        let user_data = users
+            .into_iter()
+            .map(|user| {
+                let last_checked_str = user.last_checked
+                    .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
+                    .unwrap_or_else(|| "Never".to_string());
+
+                AdminUserData {
+                    id: user.id,
+                    username: user.username,
+                    system_ip: user.system_ip,
+                    is_valid: user.is_valid,
+                    last_checked: last_checked_str,
+                }
+            })
+            .collect();
+
+        Ok(user_data)
+    }
+
+    pub async fn get_users_pending(&self) -> Result<Vec<ManagedUser>, ServiceError> {
+        self.repository.find_all_pending().await
+    }
+
+    pub async fn find_by_id(&self, user_id: i64) -> Result<Option<ManagedUser>, ServiceError> {
+        self.repository.find_by_id(user_id).await
+    }
+
+    // Background scheduler methods - don't change is_valid status
+    pub async fn update_background_data(&self, user_id: i64, config: Option<String>) -> Result<(), ServiceError> {
+        let user = self.repository.find_by_id(user_id).await?
+            .ok_or_else(|| ServiceError::NotFound("User not found".to_string()))?;
+
+        let updated_user = ManagedUser {
+            last_checked: Some(Utc::now()),
+            last_config: config,
+            ..user
+        };
+
+        self.repository.save(&updated_user).await
+    }
+
+    pub async fn update_last_checked(&self, user_id: i64) -> Result<(), ServiceError> {
+        let user = self.repository.find_by_id(user_id).await?
+            .ok_or_else(|| ServiceError::NotFound("User not found".to_string()))?;
+
+        let updated_user = ManagedUser {
+            last_checked: Some(Utc::now()),
+            ..user
+        };
+
+        self.repository.save(&updated_user).await
+    }
+
+    pub async fn clear_pending_adjustements(&self, user_id: i64) -> Result<(), ServiceError> {
+        let user = self.repository.find_by_id(user_id).await?
+            .ok_or_else(|| ServiceError::NotFound("User not found".to_string()))?;
+
+        let updated_user = ManagedUser {
+            pending_time_adjustment: None,
+            pending_time_operation: None,
+            last_checked: Some(Utc::now()),
+            ..user
+        };
+
+        self.repository.save(&updated_user).await
+    }    
 }

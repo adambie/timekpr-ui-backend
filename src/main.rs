@@ -18,7 +18,7 @@ use scheduler::BackgroundScheduler;
 use auth::JwtManager;
 use openapi_config::configure_openapi;
 use config::ApiDoc;
-use services::{ScheduleService, UserService, TimeService};
+use services::{ScheduleService, UserService, TimeService, UsageService};
 use repositories::{SqliteScheduleRepository, SqliteUserRepository, SqliteUsageRepository};
 use std::sync::Arc;
 
@@ -57,12 +57,16 @@ async fn main() -> anyhow::Result<()> {
     let usage_repository = Arc::new(SqliteUsageRepository::new(pool.clone()));
 
     // Initialize services with dependency injection
-    let schedule_service = web::Data::new(ScheduleService::new(schedule_repository));
-    let user_service = web::Data::new(UserService::new(user_repository.clone()));
+    let schedule_service_arc = Arc::new(ScheduleService::new(schedule_repository));
+    let schedule_service = web::Data::from(schedule_service_arc.clone());
+    let user_service_arc = Arc::new(UserService::new(user_repository.clone()));
+    let user_service = web::Data::from(user_service_arc.clone());
+    let usage_service_arc = Arc::new(UsageService::new(usage_repository.clone()));
+
     let time_service = web::Data::new(TimeService::new(user_repository, usage_repository));
 
     // Initialize and start background scheduler
-    let scheduler = std::sync::Arc::new(BackgroundScheduler::new(pool.clone()));
+    let scheduler = Arc::new(BackgroundScheduler::new(user_service_arc.clone(), usage_service_arc, schedule_service_arc));
     scheduler.start().await;
 
     // Initialize JWT manager with secret key

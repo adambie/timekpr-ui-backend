@@ -8,6 +8,7 @@ pub trait UsageRepository: Send + Sync {
     #[allow(dead_code)]
     async fn get_time_spent(&self, user_id: i64, date: NaiveDate) -> Result<Option<i64>, ServiceError>;
     async fn get_usage_data(&self, user_id: i64, days: i32) -> Result<Vec<(NaiveDate, i64)>, ServiceError>;
+    async fn store_daily_usage(&self, user_id: i64, date: NaiveDate, time_spent: i64) -> Result<(), ServiceError>;
 }
 
 pub struct SqliteUsageRepository {
@@ -49,5 +50,16 @@ impl UsageRepository for SqliteUsageRepository {
         }
 
         Ok(usage_data)
+    }
+
+    async fn store_daily_usage(&self, user_id: i64, date: NaiveDate, time_spent: i64) -> Result<(), ServiceError> {
+        sqlx::query!(
+            "INSERT OR REPLACE INTO user_time_usage (user_id, date, time_spent) VALUES (?, ?, ?)",
+            user_id, date, time_spent
+        )
+        .execute(&self.pool)
+        .await?;
+        
+        Ok(())
     }
 }
