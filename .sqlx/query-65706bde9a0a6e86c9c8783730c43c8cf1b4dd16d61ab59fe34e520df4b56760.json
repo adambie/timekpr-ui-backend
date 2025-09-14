@@ -1,0 +1,68 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id, username, system_ip, is_valid, date_added, last_checked, last_config, pending_time_adjustment, pending_time_operation FROM managed_users WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "username",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "system_ip",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "is_valid",
+        "ordinal": 3,
+        "type_info": "Bool"
+      },
+      {
+        "name": "date_added",
+        "ordinal": 4,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "last_checked",
+        "ordinal": 5,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "last_config",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "pending_time_adjustment",
+        "ordinal": 7,
+        "type_info": "Integer"
+      },
+      {
+        "name": "pending_time_operation",
+        "ordinal": 8,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "65706bde9a0a6e86c9c8783730c43c8cf1b4dd16d61ab59fe34e520df4b56760"
+}

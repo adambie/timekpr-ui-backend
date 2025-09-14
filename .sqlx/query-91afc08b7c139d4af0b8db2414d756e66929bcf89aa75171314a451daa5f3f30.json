@@ -1,0 +1,164 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT user_id, monday_hours, tuesday_hours, wednesday_hours, thursday_hours,\n                    friday_hours, saturday_hours, sunday_hours, is_synced, last_synced, last_modified,\n                    monday_start_time, monday_end_time, tuesday_start_time, tuesday_end_time,\n                    wednesday_start_time, wednesday_end_time, thursday_start_time, thursday_end_time,\n                    friday_start_time, friday_end_time, saturday_start_time, saturday_end_time,\n                    sunday_start_time, sunday_end_time\n             FROM user_weekly_schedule WHERE user_id = ? ORDER BY last_modified DESC LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "user_id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "monday_hours",
+        "ordinal": 1,
+        "type_info": "Float"
+      },
+      {
+        "name": "tuesday_hours",
+        "ordinal": 2,
+        "type_info": "Float"
+      },
+      {
+        "name": "wednesday_hours",
+        "ordinal": 3,
+        "type_info": "Float"
+      },
+      {
+        "name": "thursday_hours",
+        "ordinal": 4,
+        "type_info": "Float"
+      },
+      {
+        "name": "friday_hours",
+        "ordinal": 5,
+        "type_info": "Float"
+      },
+      {
+        "name": "saturday_hours",
+        "ordinal": 6,
+        "type_info": "Float"
+      },
+      {
+        "name": "sunday_hours",
+        "ordinal": 7,
+        "type_info": "Float"
+      },
+      {
+        "name": "is_synced",
+        "ordinal": 8,
+        "type_info": "Bool"
+      },
+      {
+        "name": "last_synced",
+        "ordinal": 9,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "last_modified",
+        "ordinal": 10,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "monday_start_time",
+        "ordinal": 11,
+        "type_info": "Text"
+      },
+      {
+        "name": "monday_end_time",
+        "ordinal": 12,
+        "type_info": "Text"
+      },
+      {
+        "name": "tuesday_start_time",
+        "ordinal": 13,
+        "type_info": "Text"
+      },
+      {
+        "name": "tuesday_end_time",
+        "ordinal": 14,
+        "type_info": "Text"
+      },
+      {
+        "name": "wednesday_start_time",
+        "ordinal": 15,
+        "type_info": "Text"
+      },
+      {
+        "name": "wednesday_end_time",
+        "ordinal": 16,
+        "type_info": "Text"
+      },
+      {
+        "name": "thursday_start_time",
+        "ordinal": 17,
+        "type_info": "Text"
+      },
+      {
+        "name": "thursday_end_time",
+        "ordinal": 18,
+        "type_info": "Text"
+      },
+      {
+        "name": "friday_start_time",
+        "ordinal": 19,
+        "type_info": "Text"
+      },
+      {
+        "name": "friday_end_time",
+        "ordinal": 20,
+        "type_info": "Text"
+      },
+      {
+        "name": "saturday_start_time",
+        "ordinal": 21,
+        "type_info": "Text"
+      },
+      {
+        "name": "saturday_end_time",
+        "ordinal": 22,
+        "type_info": "Text"
+      },
+      {
+        "name": "sunday_start_time",
+        "ordinal": 23,
+        "type_info": "Text"
+      },
+      {
+        "name": "sunday_end_time",
+        "ordinal": 24,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "91afc08b7c139d4af0b8db2414d756e66929bcf89aa75171314a451daa5f3f30"
+}

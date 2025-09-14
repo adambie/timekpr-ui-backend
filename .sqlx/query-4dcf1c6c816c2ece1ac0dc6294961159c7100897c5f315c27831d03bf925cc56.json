@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT date, time_spent FROM user_time_usage \n             WHERE user_id = ? AND date >= date('now', '-' || ? || ' days')\n             ORDER BY date ASC",
+  "describe": {
+    "columns": [
+      {
+        "name": "date",
+        "ordinal": 0,
+        "type_info": "Date"
+      },
+      {
+        "name": "time_spent",
+        "ordinal": 1,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "4dcf1c6c816c2ece1ac0dc6294961159c7100897c5f315c27831d03bf925cc56"
+}

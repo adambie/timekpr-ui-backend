@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE user_weekly_schedule SET is_synced = 1, last_synced = ? WHERE user_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "a82df08f702ad357ae719010efbbedb83736478ccf648cca6e610761f030cc47"
+}

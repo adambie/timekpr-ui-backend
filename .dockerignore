@@ -2,45 +2,35 @@
 .git
 .gitignore
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-*.egg-info/
-.installed.cfg
-*.egg
-venv/
+# Rust build artifacts
+target/
+Cargo.lock
 
-# Docker
-Dockerfile
-docker-compose.yml
-.dockerignore
+# Development files
+.env
+.env.local
+scripts/
+docs/
 
-# Database
-*.db
-*.sqlite3
-instance/
+# Database (will be mounted as volume)
+instance/*.db*
 
 # Logs
 logs/
 *.log
+server.log
 
 # Editor directories and files
 .idea/
 .vscode/
 *.swp
 *.swo
+
+# Test files
+tests/
+
+# Keep these files for Docker build
+!.sqlx/
+!migrations/
+!src/
+!Cargo.toml

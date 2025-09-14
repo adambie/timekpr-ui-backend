@@ -24,12 +24,15 @@ use std::sync::Arc;
 
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
-    // Initialize database
-    let database_url = "sqlite:instance/timekpr.db";
-    let pool = SqlitePool::connect(database_url).await?;
+    // Load environment variables from .env file
+    dotenvy::dotenv().ok();
     
-    // Run migrations (disabled - already applied manually)
-    // sqlx::migrate!("./migrations").run(&pool).await?;
+    // Initialize database
+    let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:instance/timekpr.db".to_string());
+    let pool = SqlitePool::connect(&database_url).await?;
+    
+    // Run migrations to ensure database is up to date
+    sqlx::migrate!("./migrations").run(&pool).await?;
     
     // Initialize admin password
     let admin_hash = sqlx::query_scalar::<_, Option<String>>("SELECT value FROM settings WHERE key = 'admin_password_hash'")

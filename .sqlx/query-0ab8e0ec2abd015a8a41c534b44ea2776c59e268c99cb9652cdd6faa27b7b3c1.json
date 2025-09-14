@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO managed_users (username, system_ip, is_valid, date_added, last_checked, last_config, pending_time_adjustment, pending_time_operation) \n                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 8
+    },
+    "nullable": []
+  },
+  "hash": "0ab8e0ec2abd015a8a41c534b44ea2776c59e268c99cb9652cdd6faa27b7b3c1"
+}

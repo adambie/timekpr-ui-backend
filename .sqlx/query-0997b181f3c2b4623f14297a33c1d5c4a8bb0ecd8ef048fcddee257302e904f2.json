@@ -1,0 +1,80 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT user_id, monday_hours, tuesday_hours, wednesday_hours, thursday_hours,\n                    friday_hours, saturday_hours, sunday_hours, is_synced, last_synced, last_modified\n             FROM user_weekly_schedule WHERE is_synced = 0",
+  "describe": {
+    "columns": [
+      {
+        "name": "user_id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "monday_hours",
+        "ordinal": 1,
+        "type_info": "Float"
+      },
+      {
+        "name": "tuesday_hours",
+        "ordinal": 2,
+        "type_info": "Float"
+      },
+      {
+        "name": "wednesday_hours",
+        "ordinal": 3,
+        "type_info": "Float"
+      },
+      {
+        "name": "thursday_hours",
+        "ordinal": 4,
+        "type_info": "Float"
+      },
+      {
+        "name": "friday_hours",
+        "ordinal": 5,
+        "type_info": "Float"
+      },
+      {
+        "name": "saturday_hours",
+        "ordinal": 6,
+        "type_info": "Float"
+      },
+      {
+        "name": "sunday_hours",
+        "ordinal": 7,
+        "type_info": "Float"
+      },
+      {
+        "name": "is_synced",
+        "ordinal": 8,
+        "type_info": "Bool"
+      },
+      {
+        "name": "last_synced",
+        "ordinal": 9,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "last_modified",
+        "ordinal": 10,
+        "type_info": "Datetime"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "0997b181f3c2b4623f14297a33c1d5c4a8bb0ecd8ef048fcddee257302e904f2"
+}

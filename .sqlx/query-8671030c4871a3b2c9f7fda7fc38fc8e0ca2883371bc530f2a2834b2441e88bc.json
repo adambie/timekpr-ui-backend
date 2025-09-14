@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE managed_users SET pending_time_adjustment = ?, pending_time_operation = ? WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "8671030c4871a3b2c9f7fda7fc38fc8e0ca2883371bc530f2a2834b2441e88bc"
+}

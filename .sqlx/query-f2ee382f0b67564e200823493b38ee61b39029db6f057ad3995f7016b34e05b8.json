@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE managed_users SET username = ?, system_ip = ?, is_valid = ?, last_checked = ?, last_config = ?, pending_time_adjustment = ?, pending_time_operation = ? WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 8
+    },
+    "nullable": []
+  },
+  "hash": "f2ee382f0b67564e200823493b38ee61b39029db6f057ad3995f7016b34e05b8"
+}
