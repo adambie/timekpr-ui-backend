@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id, key, value FROM settings ORDER BY id",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "key",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "value",
+        "ordinal": 2,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "fdd4f022a5e80e81f04ccebfe8d37c22ee5122f152759565096edcf2b31b2722"
+}

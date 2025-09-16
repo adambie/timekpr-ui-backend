@@ -1,6 +1,5 @@
 use actix_web::{web, HttpResponse, Result};
 use serde_json;
-use sqlx::SqlitePool;
 use utoipa;
 
 use crate::auth::JwtManager;
@@ -8,6 +7,7 @@ use crate::middleware::auth::authenticate_request;
 use crate::models::{ServiceError, SshStatusResponse};
 use crate::scheduler::BackgroundScheduler;
 use crate::ssh::SSHClient;
+use crate::services::UserService;
 
 #[utoipa::path(
     get,
@@ -18,7 +18,7 @@ use crate::ssh::SSHClient;
     )
 )]
 pub async fn get_task_status(
-    pool: web::Data<SqlitePool>,
+    user_service: web::Data<UserService>,
     req: actix_web::HttpRequest,
     jwt_manager: web::Data<JwtManager>,
     scheduler: web::Data<std::sync::Arc<BackgroundScheduler>>,
@@ -34,11 +34,7 @@ pub async fn get_task_status(
     let is_running = scheduler.is_running().await;
 
     // Count managed users
-    let user_count =
-        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM managed_users WHERE is_valid = 1")
-            .fetch_one(pool.get_ref())
-            .await
-            .unwrap_or(0);
+    let user_count = user_service.get_valid_users().await?.len();
 
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "success": true,

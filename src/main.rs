@@ -17,10 +17,12 @@ mod ssh;
 use auth::JwtManager;
 use config::ApiDoc;
 use openapi_config::configure_openapi;
-use repositories::{SqliteScheduleRepository, SqliteUsageRepository, SqliteUserRepository};
+use repositories::{SqliteScheduleRepository, SqliteUsageRepository, SqliteUserRepository, SqliteSettingsRepository};
 use scheduler::BackgroundScheduler;
-use services::{ScheduleService, TimeService, UsageService, UserService};
+use services::{ScheduleService, TimeService, UsageService, UserService, SettingsService};
 use std::sync::Arc;
+use crate::models::SettingsEntry;
+
 
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
@@ -35,12 +37,26 @@ async fn main() -> anyhow::Result<()> {
     // Run migrations to ensure database is up to date
     sqlx::migrate!("./migrations").run(&pool).await?;
 
+    // Initialize repositories
+    let schedule_repository = Arc::new(SqliteScheduleRepository::new(pool.clone()));
+    let user_repository = Arc::new(SqliteUserRepository::new(pool.clone()));
+    let usage_repository = Arc::new(SqliteUsageRepository::new(pool.clone()));
+    let settings_repository = Arc::new(SqliteSettingsRepository::new(pool.clone()));
+
+    // Initialize services with dependency injection
+    let schedule_service_arc = Arc::new(ScheduleService::new(schedule_repository));
+    let schedule_service = web::Data::from(schedule_service_arc.clone());
+    let user_service_arc = Arc::new(UserService::new(user_repository.clone()));
+    let user_service = web::Data::from(user_service_arc.clone());
+    let usage_service_arc = Arc::new(UsageService::new(usage_repository.clone()));
+    let time_service = web::Data::new(TimeService::new(user_repository, usage_repository));
+    let settings_service_arc = Arc::new(SettingsService::new(settings_repository.clone()));
+    let settings_service = web::Data::from(settings_service_arc.clone());
+
     // Initialize admin password
-    let admin_hash = sqlx::query_scalar::<_, Option<String>>(
-        "SELECT value FROM settings WHERE key = 'admin_password_hash'",
-    )
-    .fetch_optional(&pool)
-    .await?;
+    let admin_hash = settings_service_arc
+        .find_by_key(SettingsEntry::ADMIN_PASSWORD_HASH)
+        .await?;
 
     if admin_hash.is_none() {
         use argon2::password_hash::{rand_core::OsRng, SaltString};
@@ -52,27 +68,13 @@ async fn main() -> anyhow::Result<()> {
             .hash_password("admin".as_bytes(), &salt)
             .map_err(|e| anyhow::anyhow!("Failed to hash password: {}", e))?;
 
-        sqlx::query(
-            "INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_password_hash', ?)",
-        )
-        .bind(password_hash.to_string())
-        .execute(&pool)
-        .await?;
-    }
-
-    // Initialize repositories
-    let schedule_repository = Arc::new(SqliteScheduleRepository::new(pool.clone()));
-    let user_repository = Arc::new(SqliteUserRepository::new(pool.clone()));
-    let usage_repository = Arc::new(SqliteUsageRepository::new(pool.clone()));
-
-    // Initialize services with dependency injection
-    let schedule_service_arc = Arc::new(ScheduleService::new(schedule_repository));
-    let schedule_service = web::Data::from(schedule_service_arc.clone());
-    let user_service_arc = Arc::new(UserService::new(user_repository.clone()));
-    let user_service = web::Data::from(user_service_arc.clone());
-    let usage_service_arc = Arc::new(UsageService::new(usage_repository.clone()));
-
-    let time_service = web::Data::new(TimeService::new(user_repository, usage_repository));
+        let new_entry = models::SettingsEntry::new(
+            SettingsEntry::ADMIN_PASSWORD_HASH.to_string(),
+            password_hash.to_string(),
+        );
+        settings_service_arc.add_entry(new_entry.key, new_entry.value).await?;
+        println!("Initialized admin password to 'admin'. Please change it after first login.");
+    }    
 
     // Initialize and start background scheduler
     let scheduler = Arc::new(BackgroundScheduler::new(
@@ -85,6 +87,7 @@ async fn main() -> anyhow::Result<()> {
     // Initialize JWT manager with secret key
     let jwt_secret = std::env::var("JWT_SECRET")
         .unwrap_or_else(|_| "your-secret-key-change-in-production".to_string());
+
     let jwt_manager = web::Data::new(JwtManager::new(&jwt_secret));
 
     println!("TimeKpr UI Server listening on http://localhost:5000");
@@ -101,6 +104,7 @@ async fn main() -> anyhow::Result<()> {
             .app_data(schedule_service.clone())
             .app_data(user_service.clone())
             .app_data(time_service.clone())
+            .app_data(settings_service.clone())
             .wrap(
                 Cors::default()
                     .allow_any_origin()

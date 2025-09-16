@@ -1,6 +1,7 @@
 use actix_web::{HttpResponse, ResponseError};
 use serde_json::json;
 use std::fmt;
+use std::error::Error as StdError;
 
 #[derive(Debug)]
 pub enum ServiceError {
@@ -25,6 +26,8 @@ impl fmt::Display for ServiceError {
         }
     }
 }
+
+impl StdError for ServiceError {}
 
 impl ResponseError for ServiceError {
     fn error_response(&self) -> HttpResponse {

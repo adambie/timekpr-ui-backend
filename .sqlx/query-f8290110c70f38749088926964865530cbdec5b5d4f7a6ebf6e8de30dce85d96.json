@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE settings SET key = ?, value = ? WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "f8290110c70f38749088926964865530cbdec5b5d4f7a6ebf6e8de30dce85d96"
+}

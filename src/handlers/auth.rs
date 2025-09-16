@@ -1,11 +1,11 @@
 use actix_web::{web, HttpResponse, Result};
 use serde_json;
-use sqlx::SqlitePool;
 use utoipa;
 
 use crate::auth::JwtManager;
 use crate::middleware::auth::authenticate_request;
-use crate::models::{ApiResponse, LoginForm, LoginResponse, PasswordChangeForm, ServiceError};
+use crate::models::{ApiResponse, LoginForm, LoginResponse, PasswordChangeForm, ServiceError, SettingsEntry};
+use crate::services::SettingsService;
 
 #[utoipa::path(
     post,
@@ -18,17 +18,13 @@ use crate::models::{ApiResponse, LoginForm, LoginResponse, PasswordChangeForm, S
     security()
 )]
 pub async fn login_api(
-    pool: web::Data<SqlitePool>,
+    settings_service: web::Data<SettingsService>,
     form: web::Json<LoginForm>,
     jwt_manager: web::Data<JwtManager>,
 ) -> Result<HttpResponse, ServiceError> {
     if form.username == "admin" {
         // Check admin password
-        let admin_hash = sqlx::query_scalar::<_, String>(
-            "SELECT value FROM settings WHERE key = 'admin_password_hash'",
-        )
-        .fetch_optional(pool.get_ref())
-        .await;
+        let admin_hash = settings_service.get_admin_password_hash().await;
 
         match admin_hash {
             Ok(Some(hash)) => {
@@ -96,7 +92,7 @@ pub async fn logout_api() -> Result<HttpResponse, ServiceError> {
     )
 )]
 pub async fn change_password_api(
-    pool: web::Data<SqlitePool>,
+    settings_service: web::Data<SettingsService>,
     form: web::Json<PasswordChangeForm>,
     req: actix_web::HttpRequest,
     jwt_manager: web::Data<JwtManager>,
@@ -130,11 +126,7 @@ pub async fn change_password_api(
     }
 
     // Check current password
-    let admin_hash = sqlx::query_scalar::<_, String>(
-        "SELECT value FROM settings WHERE key = 'admin_password_hash'",
-    )
-    .fetch_optional(pool.get_ref())
-    .await;
+    let admin_hash = settings_service.get_admin_password_hash().await;
 
     match admin_hash {
         Ok(Some(hash)) => {
@@ -156,30 +148,41 @@ pub async fn change_password_api(
 
                     match new_password_hash {
                         Ok(hash) => {
-                            let result = sqlx::query(
-                                "INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_password_hash', ?)"
-                            )
-                            .bind(hash.to_string())
-                            .execute(pool.get_ref())
-                            .await;
+                            // Get the current admin password entry first
+                            if let Ok(Some(admin_entry)) = settings_service
+                                .find_by_key(SettingsEntry::ADMIN_PASSWORD_HASH)
+                                .await 
+                            {
+                                let result = settings_service.update_entry_value(
+                                    admin_entry.id,  // Use the actual ID
+                                    hash.to_string(),
+                                ).await;
 
-                            match result {
-                                Ok(_) => {
-                                    println!("Admin password updated successfully");
-                                    Ok(HttpResponse::Ok().json(serde_json::json!({
-                                        "success": true,
-                                        "message": "Password updated successfully"
-                                    })))
+                                match result {
+                                    Ok(_) => {
+                                        println!("Admin password updated successfully");
+                                        Ok(HttpResponse::Ok().json(serde_json::json!({
+                                            "success": true,
+                                            "message": "Password updated successfully"
+                                        })))
+                                    }
+                                    Err(e) => {
+                                        eprintln!("Failed to update password: {}", e);
+                                        Ok(HttpResponse::InternalServerError().json(
+                                            serde_json::json!({
+                                                "success": false,
+                                                "message": "Failed to update password"
+                                            }),
+                                        ))
+                                    }
                                 }
-                                Err(e) => {
-                                    eprintln!("Failed to update password: {}", e);
-                                    Ok(HttpResponse::InternalServerError().json(
-                                        serde_json::json!({
-                                            "success": false,
-                                            "message": "Failed to update password"
-                                        }),
-                                    ))
-                                }
+                            } else {
+                                // Handle case where admin password entry doesn't exist
+                                eprintln!("Admin password entry not found in database");
+                                Ok(HttpResponse::InternalServerError().json(serde_json::json!({
+                                    "success": false,
+                                    "message": "System error. Please try again."
+                                })))
                             }
                         }
                         Err(e) => {
